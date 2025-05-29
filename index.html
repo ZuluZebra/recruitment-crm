@@ -82,6 +82,19 @@
             const [viewingCandidate, setViewingCandidate] = useState(null);
             const [isEditing, setIsEditing] = useState(false);
             const [loginPassword, setLoginPassword] = useState('');
+            const [dbConnected, setDbConnected] = useState(true);
+
+            // Test database connection
+            const testConnection = async () => {
+                try {
+                    const { data, error } = await supabase.select('candidates', 'limit=1');
+                    setDbConnected(!error);
+                    return !error;
+                } catch (err) {
+                    setDbConnected(false);
+                    return false;
+                }
+            };
 
             const [users] = useState([
                 { id: 1, name: 'Chris van der Merwe', email: 'chris@company.com', role: 'admin', avatar: 'CM', password: 'NextGen' }
@@ -100,9 +113,11 @@
             // Load candidates from Supabase
             const loadCandidates = async () => {
                 try {
+                    console.log('Loading candidates from database...');
                     const { data, error } = await supabase.select('candidates');
                     if (error) {
-                        console.error('Failed to load candidates:', error);
+                        console.error('Failed to load candidates from database:', error);
+                        console.log('Using demo data instead');
                         setCandidates([
                             {
                                 id: 1,
@@ -125,10 +140,12 @@
                             }
                         ]);
                     } else {
+                        console.log(`Loaded ${data?.length || 0} candidates from database`);
                         setCandidates(data || []);
                     }
                 } catch (err) {
                     console.error('Connection error:', err);
+                    console.log('Using demo data due to connection issue');
                 }
             };
 
@@ -141,27 +158,43 @@
                         if (!error) {
                             setCandidates(prev => prev.map(c => c.id === candidateData.id ? candidateData : c));
                             console.log('Updated candidate successfully');
+                            return true;
                         } else {
                             console.error('Update failed:', error);
+                            // Still update local state even if database fails
+                            setCandidates(prev => prev.map(c => c.id === candidateData.id ? candidateData : c));
+                            return false;
                         }
                     } else {
-                        // Create new
-                        const newCandidate = { ...candidateData };
-                        delete newCandidate.id;
-                        const { data, error } = await supabase.insert('candidates', newCandidate);
+                        // Create new - try database first
+                        const dbCandidate = { ...candidateData };
+                        delete dbCandidate.id; // Let database generate ID
+                        
+                        const { data, error } = await supabase.insert('candidates', dbCandidate);
                         if (!error && data && data[0]) {
+                            // Database save successful
                             setCandidates(prev => [...prev, data[0]]);
-                            console.log('Added candidate successfully');
+                            console.log('Added candidate to database successfully');
+                            return true;
                         } else {
-                            // Fallback for demo mode
-                            setCandidates(prev => [...prev, { ...candidateData, id: Date.now() }]);
-                            console.log('Using fallback mode');
+                            // Database save failed - use local storage
+                            console.log('Database insert failed, using local storage:', error);
+                            const localCandidate = { ...candidateData, id: Date.now() };
+                            setCandidates(prev => [...prev, localCandidate]);
+                            alert('Record saved locally. Database connection may be unavailable.');
+                            return false;
                         }
                     }
-                    // Reload candidates to ensure consistency
-                    await loadCandidates();
                 } catch (err) {
                     console.error('Save error:', err);
+                    // Always save locally as fallback
+                    if (candidateData.id && candidates.find(c => c.id === candidateData.id)) {
+                        setCandidates(prev => prev.map(c => c.id === candidateData.id ? candidateData : c));
+                    } else {
+                        setCandidates(prev => [...prev, { ...candidateData, id: Date.now() }]);
+                    }
+                    alert('Saved locally. Please check your internet connection.');
+                    return false;
                 }
             };
 
@@ -178,6 +211,7 @@
             };
 
             useEffect(() => {
+                testConnection();
                 loadCandidates();
             }, []);
 
@@ -197,24 +231,30 @@
                     }
 
                     const newCandidate = {
-                        ...formData,
-                        id: Date.now(),
+                        name: formData.name,
+                        company: formData.company,
+                        job_title: formData.job_title,
+                        position: formData.job_title,
                         email: '',
                         phone: '',
-                        position: formData.job_title,
                         location: '',
                         status: 'new',
                         confidential: false,
                         notes: '',
-                        linkedin_url: '',
                         added_by: currentUser.name,
                         added_date: new Date().toISOString().split('T')[0],
-                        last_updated: new Date().toISOString().split('T')[0],
-                        last_viewed: null,
-                        last_viewed_by: null
+                        last_updated: new Date().toISOString().split('T')[0]
                     };
 
-                    await saveCandidate(newCandidate);
+                    console.log('Saving new candidate:', newCandidate);
+                    const success = await saveCandidate(newCandidate);
+                    
+                    if (success) {
+                        console.log('Candidate saved successfully');
+                    } else {
+                        console.log('Candidate saved locally (database may be unavailable)');
+                    }
+                    
                     setFormData({ name: '', company: '', job_title: '' });
                     setShowAddForm(false);
                 };
@@ -602,8 +642,8 @@
                             React.createElement('div', { className: "flex items-center" },
                                 React.createElement('h1', { className: "text-xl font-bold text-gray-900 mr-4" }, "RecruitPro CRM"),
                                 React.createElement('span', { 
-                                    className: "px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full" 
-                                }, "Database Connected")
+                                    className: `px-2 py-1 text-xs rounded-full ${dbConnected ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}` 
+                                }, dbConnected ? "Database Connected" : "Local Mode")
                             ),
                             React.createElement('div', { className: "flex items-center space-x-4" },
                                 React.createElement('div', { className: "flex items-center space-x-2" },
