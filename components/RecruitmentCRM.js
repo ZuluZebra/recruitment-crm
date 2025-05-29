@@ -61,13 +61,12 @@ const RecruitmentCRM = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState(null);
+  const [viewingCandidate, setViewingCandidate] = useState(null);
+  const [loginPassword, setLoginPassword] = useState('');
 
-  const users = [
-    { id: 1, name: 'Chris van der Merwe', email: 'chris@company.com', role: 'admin', avatar: 'CM' },
-    { id: 2, name: 'John Smith', email: 'john@company.com', role: 'admin', avatar: 'JS' },
-    { id: 3, name: 'Sarah Johnson', email: 'sarah@company.com', role: 'recruiter', avatar: 'SJ' },
-    { id: 4, name: 'Mike Chen', email: 'mike@company.com', role: 'interviewer', avatar: 'MC' },
-  ];
+  const [users] = useState([
+    { id: 1, name: 'Chris van der Merwe', email: 'chris@company.com', role: 'admin', avatar: 'CM', password: 'NextGen' }
+  ]);
 
   const statuses = [
     { value: 'new', label: 'New', color: 'bg-blue-100 text-blue-800' },
@@ -93,11 +92,12 @@ const RecruitmentCRM = () => {
             email: 'alice.rodriguez@email.com',
             phone: '+1 (555) 123-4567',
             position: 'Senior React Developer',
+            job_title: 'Lead Frontend Developer',
+            company: 'Tech Innovations Inc',
             status: 'interviewing',
             confidential: false,
-            experience: '5 years',
             location: 'San Francisco, CA',
-            added_by: 'Sarah Johnson',
+            added_by: 'Chris van der Merwe',
             added_date: '2025-05-25',
             last_updated: '2025-05-28'
           }
@@ -147,7 +147,7 @@ const RecruitmentCRM = () => {
         <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">RecruitPro CRM</h1>
-            <p className="text-gray-600">Database-powered recruitment management</p>
+            <p className="text-gray-600">Secure recruitment management system</p>
             <div className="mt-3 p-2 bg-green-100 rounded-lg">
               <p className="text-sm text-green-800">
                 ✅ Connected to Supabase Database
@@ -156,22 +156,50 @@ const RecruitmentCRM = () => {
           </div>
           
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">Select Your Profile:</h3>
-            {users.map(user => (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl mx-auto mb-4">
+                CM
+              </div>
+              <h3 className="text-lg font-semibold text-gray-700">Chris van der Merwe</h3>
+              <p className="text-sm text-gray-500">Administrator</p>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      if (loginPassword === users[0].password) {
+                        setCurrentUser(users[0]);
+                      } else {
+                        alert('Incorrect password');
+                        setLoginPassword('');
+                      }
+                    }
+                  }}
+                />
+              </div>
+              
               <button
-                key={user.id}
-                onClick={() => setCurrentUser(user)}
-                className="w-full p-4 border rounded-lg hover:bg-gray-50 flex items-center space-x-3 transition-colors"
+                onClick={() => {
+                  if (loginPassword === users[0].password) {
+                    setCurrentUser(users[0]);
+                  } else {
+                    alert('Incorrect password');
+                    setLoginPassword('');
+                  }
+                }}
+                className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 font-medium"
               >
-                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-semibold">
-                  {user.avatar}
-                </div>
-                <div className="text-left">
-                  <div className="font-medium text-gray-900">{user.name}</div>
-                  <div className="text-sm text-gray-500 capitalize">{user.role}</div>
-                </div>
+                Sign In
               </button>
-            ))}
+            </div>
           </div>
         </div>
       </div>
@@ -181,13 +209,13 @@ const RecruitmentCRM = () => {
   // Add/Edit Candidate Form
   const CandidateForm = ({ candidate, onClose, onSave }) => {
     const [formData, setFormData] = useState(candidate || {
-      name: '', email: '', phone: '', position: '', status: 'new',
-      confidential: false, experience: '', location: ''
+      name: '', email: '', phone: '', position: '', job_title: '', company: '', status: 'new',
+      confidential: false, location: ''
     });
 
     const handleSubmit = async () => {
-      if (!formData.name || !formData.email || !formData.position) {
-        alert('Please fill in all required fields');
+      if (!formData.name || !formData.email || !formData.position || !formData.job_title) {
+        alert('Please fill in all required fields (Name, Email, Position, Job Title)');
         return;
       }
 
@@ -250,11 +278,21 @@ const RecruitmentCRM = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Experience</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Job Title *</label>
                 <input
                   type="text"
-                  value={formData.experience}
-                  onChange={(e) => setFormData({...formData, experience: e.target.value})}
+                  value={formData.job_title}
+                  onChange={(e) => setFormData({...formData, job_title: e.target.value})}
+                  className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                <input
+                  type="text"
+                  value={formData.company}
+                  onChange={(e) => setFormData({...formData, company: e.target.value})}
                   className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -314,7 +352,242 @@ const RecruitmentCRM = () => {
     );
   };
 
-  // Configuration Modal
+  // Detailed Candidate View
+  const CandidateDetailView = ({ candidate, onClose }) => {
+    const [notes, setNotes] = useState(candidate.notes || '');
+    const [isEditing, setIsEditing] = useState(false);
+    const [editData, setEditData] = useState(candidate);
+
+    const handleSave = async () => {
+      const updatedCandidate = {
+        ...editData,
+        notes,
+        last_updated: new Date().toISOString().split('T')[0]
+      };
+      await saveCandidate(updatedCandidate);
+      setIsEditing(false);
+      onClose();
+    };
+
+    const updateStatus = async (newStatus) => {
+      const updatedCandidate = {
+        ...candidate,
+        status: newStatus,
+        last_updated: new Date().toISOString().split('T')[0]
+      };
+      await saveCandidate(updatedCandidate);
+    };
+
+    const currentStatus = statuses.find(s => s.value === candidate.status);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b">
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">{candidate.name}</h2>
+                <p className="text-gray-600">{candidate.job_title} at {candidate.company}</p>
+                <div className="flex items-center mt-2">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${currentStatus?.color}`}>
+                    {currentStatus?.label}
+                  </span>
+                  {candidate.confidential && (
+                    <span className="ml-2 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                      <Shield className="inline w-4 h-4 mr-1" />
+                      Confidential
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                >
+                  {isEditing ? 'Cancel Edit' : 'Edit'}
+                </button>
+                <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 grid grid-cols-3 gap-6">
+            <div className="col-span-2 space-y-6">
+              {isEditing ? (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold mb-3">Edit Candidate Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={editData.name}
+                        onChange={(e) => setEditData({...editData, name: e.target.value})}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={editData.email}
+                        onChange={(e) => setEditData({...editData, email: e.target.value})}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={editData.phone}
+                        onChange={(e) => setEditData({...editData, phone: e.target.value})}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                      <input
+                        type="text"
+                        value={editData.position}
+                        onChange={(e) => setEditData({...editData, position: e.target.value})}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+                      <input
+                        type="text"
+                        value={editData.job_title}
+                        onChange={(e) => setEditData({...editData, job_title: e.target.value})}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                      <input
+                        type="text"
+                        value={editData.company}
+                        onChange={(e) => setEditData({...editData, company: e.target.value})}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                      <input
+                        type="text"
+                        value={editData.location}
+                        onChange={(e) => setEditData({...editData, location: e.target.value})}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="edit-confidential"
+                        checked={editData.confidential}
+                        onChange={(e) => setEditData({...editData, confidential: e.target.checked})}
+                        className="mr-2"
+                      />
+                      <label htmlFor="edit-confidential" className="text-sm font-medium text-gray-700">
+                        <Shield className="inline w-4 h-4 mr-1" />
+                        Mark as Confidential
+                      </label>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSave}
+                    className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                      <p><strong>Email:</strong> {candidate.email}</p>
+                      <p><strong>Phone:</strong> {candidate.phone}</p>
+                      <p><strong>Location:</strong> {candidate.location}</p>
+                      <p><strong>Position:</strong> {candidate.position}</p>
+                      <p><strong>Job Title:</strong> {candidate.job_title}</p>
+                      <p><strong>Company:</strong> {candidate.company}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Status Management</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {statuses.map(status => (
+                        <button
+                          key={status.value}
+                          onClick={() => updateStatus(status.value)}
+                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                            candidate.status === status.value 
+                              ? status.color
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {status.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Notes</h3>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Add notes about this candidate..."
+                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 h-32"
+                    />
+                    <button
+                      onClick={handleSave}
+                      className="mt-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                    >
+                      Save Notes
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Candidate Info</h3>
+                <div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm">
+                  <p><strong>Added by:</strong> {candidate.added_by}</p>
+                  <p><strong>Added:</strong> {candidate.added_date}</p>
+                  <p><strong>Last updated:</strong> {candidate.last_updated}</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Quick Actions</h3>
+                <div className="space-y-2">
+                  <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
+                    📞 Schedule Call
+                  </button>
+                  <button className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700">
+                    📧 Send Email
+                  </button>
+                  <button className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700">
+                    📅 Schedule Interview
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
   const ConfigModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 w-full max-w-2xl">
@@ -395,6 +668,15 @@ const RecruitmentCRM = () => {
                 </div>
                 <span className="text-sm font-medium text-gray-700">{currentUser.name}</span>
                 <span className="text-xs text-gray-500 capitalize">({currentUser.role})</span>
+                <button
+                  onClick={() => {
+                    setCurrentUser(null);
+                    setLoginPassword('');
+                  }}
+                  className="ml-4 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Sign Out
+                </button>
               </div>
             </div>
           </div>
@@ -494,7 +776,7 @@ const RecruitmentCRM = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -515,7 +797,12 @@ const RecruitmentCRM = () => {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900 flex items-center">
-                                {candidate.name}
+                                <button
+                                  onClick={() => setViewingCandidate(candidate)}
+                                  className="text-indigo-600 hover:text-indigo-900 font-medium"
+                                >
+                                  {candidate.name}
+                                </button>
                                 {candidate.confidential && (
                                   <Shield className="ml-2 w-4 h-4 text-red-500" />
                                 )}
@@ -524,8 +811,9 @@ const RecruitmentCRM = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {candidate.position}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{candidate.position}</div>
+                          <div className="text-sm text-gray-500">{candidate.job_title}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${status?.color}`}>
@@ -533,7 +821,7 @@ const RecruitmentCRM = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {candidate.experience}
+                          {candidate.company}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {candidate.lastUpdated}
@@ -585,6 +873,13 @@ const RecruitmentCRM = () => {
           candidate={editingCandidate}
           onClose={() => setEditingCandidate(null)}
           onSave={() => {}}
+        />
+      )}
+
+      {viewingCandidate && (
+        <CandidateDetailView
+          candidate={viewingCandidate}
+          onClose={() => setViewingCandidate(null)}
         />
       )}
 
