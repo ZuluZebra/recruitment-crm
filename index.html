@@ -115,9 +115,13 @@
                                 status: 'interviewing',
                                 confidential: false,
                                 location: 'San Francisco, CA',
+                                notes: 'Excellent technical skills, very responsive during initial screening.',
+                                linkedin_url: 'https://linkedin.com/in/alicerodriguez',
                                 added_by: 'Chris van der Merwe',
                                 added_date: '2025-05-25',
-                                last_updated: '2025-05-28'
+                                last_updated: '2025-05-28',
+                                last_viewed: '2025-05-29T10:30:00Z',
+                                last_viewed_by: 'Chris van der Merwe'
                             }
                         ]);
                     } else {
@@ -132,23 +136,45 @@
             const saveCandidate = async (candidateData) => {
                 try {
                     if (candidateData.id && candidates.find(c => c.id === candidateData.id)) {
-                        const { error } = await supabase.update('candidates', candidateData, `id=eq.${candidateData.id}`);
+                        // Update existing
+                        const { data, error } = await supabase.update('candidates', candidateData, `id=eq.${candidateData.id}`);
                         if (!error) {
                             setCandidates(prev => prev.map(c => c.id === candidateData.id ? candidateData : c));
+                            console.log('Updated candidate successfully');
+                        } else {
+                            console.error('Update failed:', error);
                         }
                     } else {
+                        // Create new
                         const newCandidate = { ...candidateData };
                         delete newCandidate.id;
                         const { data, error } = await supabase.insert('candidates', newCandidate);
                         if (!error && data && data[0]) {
                             setCandidates(prev => [...prev, data[0]]);
+                            console.log('Added candidate successfully');
                         } else {
+                            // Fallback for demo mode
                             setCandidates(prev => [...prev, { ...candidateData, id: Date.now() }]);
+                            console.log('Using fallback mode');
                         }
                     }
+                    // Reload candidates to ensure consistency
+                    await loadCandidates();
                 } catch (err) {
                     console.error('Save error:', err);
                 }
+            };
+
+            // Track when candidate is viewed
+            const trackCandidateView = async (candidate) => {
+                const viewTimestamp = new Date().toISOString();
+                const updatedCandidate = {
+                    ...candidate,
+                    last_viewed: viewTimestamp,
+                    last_viewed_by: currentUser.name
+                };
+                await saveCandidate(updatedCandidate);
+                setViewingCandidate(updatedCandidate);
             };
 
             useEffect(() => {
@@ -180,9 +206,12 @@
                         status: 'new',
                         confidential: false,
                         notes: '',
+                        linkedin_url: '',
                         added_by: currentUser.name,
                         added_date: new Date().toISOString().split('T')[0],
-                        last_updated: new Date().toISOString().split('T')[0]
+                        last_updated: new Date().toISOString().split('T')[0],
+                        last_viewed: null,
+                        last_viewed_by: null
                     };
 
                     await saveCandidate(newCandidate);
@@ -249,15 +278,24 @@
             const CandidateDetailView = () => {
                 const [editData, setEditData] = useState(viewingCandidate);
                 const [notes, setNotes] = useState(viewingCandidate.notes || '');
+                const [linkedinUrl, setLinkedinUrl] = useState(viewingCandidate.linkedin_url || '');
+
+                // Track view when component opens
+                useEffect(() => {
+                    if (viewingCandidate && !viewingCandidate.last_viewed) {
+                        trackCandidateView(viewingCandidate);
+                    }
+                }, []);
 
                 const handleSave = async () => {
                     const updatedCandidate = {
                         ...editData,
                         notes,
+                        linkedin_url: linkedinUrl,
                         last_updated: new Date().toISOString().split('T')[0]
                     };
                     await saveCandidate(updatedCandidate);
-                    setViewingCandidate(null);
+                    setViewingCandidate(updatedCandidate);
                     setIsEditing(false);
                 };
 
@@ -268,9 +306,17 @@
                         last_updated: new Date().toISOString().split('T')[0]
                     };
                     await saveCandidate(updatedCandidate);
+                    setViewingCandidate(updatedCandidate);
                 };
 
                 const currentStatus = statuses.find(s => s.value === viewingCandidate.status);
+
+                // Format timestamp for display
+                const formatViewTime = (timestamp) => {
+                    if (!timestamp) return 'Never';
+                    const date = new Date(timestamp);
+                    return date.toLocaleString();
+                };
 
                 return React.createElement('div', { 
                     className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
@@ -362,6 +408,16 @@
                                                     onChange: (e) => setEditData({...editData, location: e.target.value}),
                                                     className: "w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
                                                 })
+                                            ),
+                                            React.createElement('div', null,
+                                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "LinkedIn URL"),
+                                                React.createElement('input', {
+                                                    type: "url",
+                                                    value: linkedinUrl,
+                                                    onChange: (e) => setLinkedinUrl(e.target.value),
+                                                    placeholder: "https://linkedin.com/in/username",
+                                                    className: "w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                                })
                                             )
                                         ),
                                         React.createElement('button', {
@@ -377,8 +433,32 @@
                                                 React.createElement('p', null, React.createElement('strong', null, "Phone: "), viewingCandidate.phone || 'Not provided'),
                                                 React.createElement('p', null, React.createElement('strong', null, "Location: "), viewingCandidate.location || 'Not provided'),
                                                 React.createElement('p', null, React.createElement('strong', null, "Job Title: "), viewingCandidate.job_title),
-                                                React.createElement('p', null, React.createElement('strong', null, "Company: "), viewingCandidate.company)
+                                                React.createElement('p', null, React.createElement('strong', null, "Company: "), viewingCandidate.company),
+                                                viewingCandidate.linkedin_url && React.createElement('p', null, 
+                                                    React.createElement('strong', null, "LinkedIn: "),
+                                                    React.createElement('a', {
+                                                        href: viewingCandidate.linkedin_url,
+                                                        target: '_blank',
+                                                        rel: 'noopener noreferrer',
+                                                        className: 'text-blue-600 hover:text-blue-800 underline'
+                                                    }, 'View Profile')
+                                                )
                                             )
+                                        ),
+
+                                        React.createElement('div', null,
+                                            React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "LinkedIn Profile"),
+                                            React.createElement('input', {
+                                                type: "url",
+                                                value: linkedinUrl,
+                                                onChange: (e) => setLinkedinUrl(e.target.value),
+                                                placeholder: "https://linkedin.com/in/username",
+                                                className: "w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 mb-2"
+                                            }),
+                                            React.createElement('button', {
+                                                onClick: handleSave,
+                                                className: "bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                                            }, "Save LinkedIn URL")
                                         ),
 
                                         React.createElement('div', null,
@@ -425,17 +505,11 @@
                                 ),
 
                                 React.createElement('div', null,
-                                    React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "Quick Actions"),
-                                    React.createElement('div', { className: "space-y-2" },
-                                        React.createElement('button', { 
-                                            className: "w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700" 
-                                        }, "📞 Schedule Call"),
-                                        React.createElement('button', { 
-                                            className: "w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700" 
-                                        }, "📧 Send Email"),
-                                        React.createElement('button', { 
-                                            className: "w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700" 
-                                        }, "📅 Schedule Interview")
+                                    React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "View History"),
+                                    React.createElement('div', { className: "bg-blue-50 p-3 rounded-lg space-y-2 text-sm" },
+                                        React.createElement('p', null, React.createElement('strong', null, "Last viewed: "), formatViewTime(viewingCandidate.last_viewed)),
+                                        viewingCandidate.last_viewed_by && React.createElement('p', null, React.createElement('strong', null, "Viewed by: "), viewingCandidate.last_viewed_by),
+                                        React.createElement('p', { className: 'text-xs text-gray-600 mt-2' }, "This record was accessed when you opened this detail view.")
                                     )
                                 )
                             )
@@ -642,7 +716,7 @@
                                                         ),
                                                         React.createElement('div', null,
                                                             React.createElement('button', {
-                                                                onClick: () => setViewingCandidate(candidate),
+                                                                onClick: () => trackCandidateView(candidate),
                                                                 className: "text-sm font-medium text-indigo-600 hover:text-indigo-900"
                                                             }, candidate.name),
                                                             React.createElement('div', { className: "text-sm text-gray-500" }, candidate.email)
@@ -662,7 +736,7 @@
                                                     candidate.company),
                                                 React.createElement('td', { className: "px-6 py-4 whitespace-nowrap text-sm font-medium" },
                                                     React.createElement('button', {
-                                                        onClick: () => setViewingCandidate(candidate),
+                                                        onClick: () => trackCandidateView(candidate),
                                                         className: "text-indigo-600 hover:text-indigo-900"
                                                     }, "👁️ View Details")
                                                 )
