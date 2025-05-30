@@ -1169,7 +1169,7 @@
         };
 
         const RecruitPro = () => {
-            console.log('RecruitPro starting...');
+            console.log('RecruitPro component starting...');
             
             const [currentUser, setCurrentUser] = useState(null);
             const [candidates, setCandidates] = useState([]);
@@ -1195,6 +1195,8 @@
             
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
+
+            console.log('Current user state:', currentUser);
 
             const user = { 
                 id: 1, 
@@ -1344,8 +1346,9 @@
                 if (loginPassword === user.password) {
                     console.log('Login successful');
                     setCurrentUser(user);
+                    setLoginPassword(''); // Clear password after successful login
                 } else {
-                    alert('Incorrect password. Try: NextGen');
+                    alert('Incorrect password. Please try again.');
                     setLoginPassword('');
                 }
             };
@@ -1420,30 +1423,20 @@
                                 Chris van der Merwe
                             </h3>
                             
-                            <div style={{marginBottom: '15px'}}>
-                                <input
-                                    type="password"
-                                    className="password-input"
-                                    placeholder="Enter password (NextGen)"
-                                    value={loginPassword}
-                                    onChange={(e) => setLoginPassword(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleLogin();
-                                        }
-                                    }}
-                                    autoFocus
-                                />
-                                <div style={{
-                                    fontSize: '12px', 
-                                    color: '#8b5cf6', 
-                                    textAlign: 'center',
-                                    fontWeight: '500'
-                                }}>
-                                    💡 Password: NextGen
-                                </div>
-                            </div>
+                            <input
+                                type="password"
+                                className="password-input"
+                                placeholder="Enter password"
+                                value={loginPassword}
+                                onChange={(e) => setLoginPassword(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleLogin();
+                                    }
+                                }}
+                                autoFocus
+                            />
                             
                             <button 
                                 className="login-button"
@@ -1457,51 +1450,58 @@
                 );
             }
 
-            // Enhanced search function with comment searching
-            const searchInComments = useCallback((candidate, searchTerm) => {
-                if (!candidate.timeline || !searchTerm) return false;
-                return candidate.timeline.some(entry => 
-                    entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    entry.action.toLowerCase().includes(searchTerm.toLowerCase())
-                );
-            }, []);
+            // Main application
+            console.log('Rendering main application, currentUser:', currentUser);
+            
+            try {
+                // Enhanced search function with comment searching
+                const searchInComments = useCallback((candidate, searchTerm) => {
+                    if (!candidate.timeline || !searchTerm) return false;
+                    return candidate.timeline.some(entry => 
+                        entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        entry.action.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+                }, []);
 
-            const filteredCandidates = candidates.filter(candidate => {
-                const searchLower = searchTerm.toLowerCase();
-                const matchesSearch = searchTerm === '' || 
-                    candidate.name.toLowerCase().includes(searchLower) ||
-                    candidate.job_title.toLowerCase().includes(searchLower) ||
-                    candidate.company.toLowerCase().includes(searchLower) ||
-                    (candidate.location && candidate.location.toLowerCase().includes(searchLower)) ||
-                    (candidate.notes && candidate.notes.toLowerCase().includes(searchLower)) ||
-                    (candidate.source && candidate.source.toLowerCase().includes(searchLower)) ||
-                    (candidate.tags && candidate.tags.some(tag => 
-                        tag.toLowerCase().includes(searchLower)
-                    )) ||
-                    searchInComments(candidate, searchTerm);
-                
-                const matchesStatus = statusFilter === 'all' || candidate.status === statusFilter;
-                const matchesTag = tagFilter === 'all' || 
-                    (candidate.tags && candidate.tags.includes(tagFilter));
-                
-                return matchesSearch && matchesStatus && matchesTag;
-            });
+                const filteredCandidates = candidates.filter(candidate => {
+                    const searchLower = searchTerm.toLowerCase();
+                    const matchesSearch = searchTerm === '' || 
+                        candidate.name.toLowerCase().includes(searchLower) ||
+                        candidate.job_title.toLowerCase().includes(searchLower) ||
+                        candidate.company.toLowerCase().includes(searchLower) ||
+                        (candidate.location && candidate.location.toLowerCase().includes(searchLower)) ||
+                        (candidate.notes && candidate.notes.toLowerCase().includes(searchLower)) ||
+                        (candidate.source && candidate.source.toLowerCase().includes(searchLower)) ||
+                        (candidate.tags && candidate.tags.some(tag => 
+                            tag.toLowerCase().includes(searchLower)
+                        )) ||
+                        searchInComments(candidate, searchTerm);
+                    
+                    const matchesStatus = statusFilter === 'all' || candidate.status === statusFilter;
+                    const matchesTag = tagFilter === 'all' || 
+                        (candidate.tags && candidate.tags.includes(tagFilter));
+                    
+                    return matchesSearch && matchesStatus && matchesTag;
+                });
 
-            const stats = {
-                total: candidates.length,
-                interviewing: candidates.filter(c => c.status === 'interviewing').length,
-                diversity: candidates.filter(c => c.gender === 'Female' || c.gender === 'Non-binary' || c.gender === 'Other').length,
-                hired: candidates.filter(c => c.status === 'hired').length,
-                avgScore: candidates.length > 0 ? 
-                    (candidates.reduce((sum, c) => sum + (c.score || 0), 0) / candidates.length).toFixed(1) : 0,
-                newThisWeek: candidates.filter(c => {
-                    const weekAgo = new Date();
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    return new Date(c.created_at) > weekAgo;
-                }).length
-            };
+                const stats = {
+                    total: candidates.length,
+                    interviewing: candidates.filter(c => c.status === 'interviewing').length,
+                    diversity: candidates.filter(c => c.gender === 'Female' || c.gender === 'Non-binary' || c.gender === 'Other').length,
+                    hired: candidates.filter(c => c.status === 'hired').length,
+                    avgScore: candidates.length > 0 ? 
+                        (candidates.reduce((sum, c) => sum + (c.score || 0), 0) / candidates.length).toFixed(1) : 0,
+                    newThisWeek: candidates.filter(c => {
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return new Date(c.created_at) > weekAgo;
+                    }).length
+                };
 
-            const allTags = [...new Set(candidates.flatMap(c => c.tags || []))];
+                const allTags = [...new Set(candidates.flatMap(c => c.tags || []))];
+
+                console.log('Stats calculated:', stats);
+                console.log('Filtered candidates:', filteredCandidates.length);
 
             // Update functions
             const updateScore = async (candidateId, newScore) => {
@@ -2225,7 +2225,7 @@
             };
 
             // Candidates View Component
-            const CandidatesView = () => (
+            const CandidatesView = ({ filteredCandidates, stats, allTags }) => (
                 <div>
                     <div className="stats-grid">
                         <div className="stat-card">
@@ -2706,83 +2706,116 @@
                 </div>
             );
 
-            return (
-                <div className={`main-app ${showSplitPanel ? 'split-view' : ''}`}>
-                    <header className="header">
-                        <h1 className="header-title">
-                            RecruitPro CRM
-                            {dbConnected ? 
-                                <span style={{fontSize: '12px', color: '#10b981', marginLeft: '10px'}}>● Database Connected</span> :
-                                <span style={{fontSize: '12px', color: '#f59e0b', marginLeft: '10px'}}>● Local Mode</span>
-                            }
-                        </h1>
-                        
-                        <div className="user-info">
-                            <span>{currentUser.name}</span>
-                            <span style={{fontSize: '12px', color: '#94a3b8'}}>
-                                Last login: {loginSessions.length > 1 ? formatTimeAgo(loginSessions[1]?.loginTime) : 'First time'}
-                            </span>
-                            <button className="logout-btn" onClick={handleLogout}>
-                                Sign Out
+                return (
+                    <div className={`main-app ${showSplitPanel ? 'split-view' : ''}`}>
+                        <header className="header">
+                            <h1 className="header-title">
+                                RecruitPro CRM
+                                {dbConnected ? 
+                                    <span style={{fontSize: '12px', color: '#10b981', marginLeft: '10px'}}>● Database Connected</span> :
+                                    <span style={{fontSize: '12px', color: '#f59e0b', marginLeft: '10px'}}>● Local Mode</span>
+                                }
+                            </h1>
+                            
+                            <div className="user-info">
+                                <span>{currentUser.name}</span>
+                                <span style={{fontSize: '12px', color: '#94a3b8'}}>
+                                    Last login: {loginSessions.length > 1 ? formatTimeAgo(loginSessions[1]?.loginTime) : 'First time'}
+                                </span>
+                                <button className="logout-btn" onClick={handleLogout}>
+                                    Sign Out
+                                </button>
+                            </div>
+                        </header>
+
+                        <nav className="nav-tabs">
+                            <button 
+                                className={`nav-tab ${activeTab === 'candidates' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('candidates')}
+                            >
+                                📋 Candidates
+                            </button>
+                            <button 
+                                className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('analytics')}
+                            >
+                                📊 Analytics
+                            </button>
+                            <button 
+                                className={`nav-tab ${activeTab === 'interviews' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('interviews')}
+                            >
+                                🎤 Interviews
+                            </button>
+                            <button 
+                                className={`nav-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('pipeline')}
+                            >
+                                📁 Projects
+                            </button>
+                        </nav>
+
+                        <div className="dashboard">
+                            {loading ? (
+                                <div style={{textAlign: 'center', padding: '50px'}}>
+                                    <div style={{
+                                        width: '40px',
+                                        height: '40px',
+                                        border: '4px solid rgba(139, 92, 246, 0.3)',
+                                        borderTop: '4px solid #8b5cf6',
+                                        borderRadius: '50%',
+                                        animation: 'spin 1s linear infinite',
+                                        margin: '0 auto 20px'
+                                    }}></div>
+                                    <p style={{color: '#94a3b8'}}>Loading candidates...</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {activeTab === 'candidates' && <CandidatesView filteredCandidates={filteredCandidates} stats={stats} allTags={allTags} />}
+                                    {activeTab === 'analytics' && <AnalyticsDashboard />}
+                                    {activeTab === 'interviews' && <InterviewsView />}
+                                    {activeTab === 'pipeline' && <PipelineView />}
+                                </>
+                            )}
+                        </div>
+
+                        {showAddModal && <AddCandidateModal />}
+                        <SplitPanel />
+                    </div>
+                );
+            } catch (error) {
+                console.error('Error rendering main app:', error);
+                return (
+                    <div style={{
+                        minHeight: '100vh',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3a 50%, #2d1b69 100%)',
+                        color: '#e2e8f0',
+                        textAlign: 'center',
+                        padding: '20px'
+                    }}>
+                        <div>
+                            <h2 style={{marginBottom: '20px', color: '#ef4444'}}>Application Error</h2>
+                            <p style={{marginBottom: '20px'}}>Something went wrong. Please refresh the page.</p>
+                            <button 
+                                onClick={() => window.location.reload()}
+                                style={{
+                                    background: '#8b5cf6',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '12px 24px',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Refresh Page
                             </button>
                         </div>
-                    </header>
-
-                    <nav className="nav-tabs">
-                        <button 
-                            className={`nav-tab ${activeTab === 'candidates' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('candidates')}
-                        >
-                            📋 Candidates
-                        </button>
-                        <button 
-                            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('analytics')}
-                        >
-                            📊 Analytics
-                        </button>
-                        <button 
-                            className={`nav-tab ${activeTab === 'interviews' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('interviews')}
-                        >
-                            🎤 Interviews
-                        </button>
-                        <button 
-                            className={`nav-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('pipeline')}
-                        >
-                            📁 Projects
-                        </button>
-                    </nav>
-
-                    <div className="dashboard">
-                        {loading ? (
-                            <div style={{textAlign: 'center', padding: '50px'}}>
-                                <div style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    border: '4px solid rgba(139, 92, 246, 0.3)',
-                                    borderTop: '4px solid #8b5cf6',
-                                    borderRadius: '50%',
-                                    animation: 'spin 1s linear infinite',
-                                    margin: '0 auto 20px'
-                                }}></div>
-                                <p style={{color: '#94a3b8'}}>Loading candidates...</p>
-                            </div>
-                        ) : (
-                            <>
-                                {activeTab === 'candidates' && <CandidatesView />}
-                                {activeTab === 'analytics' && <AnalyticsDashboard />}
-                                {activeTab === 'interviews' && <InterviewsView />}
-                                {activeTab === 'pipeline' && <PipelineView />}
-                            </>
-                        )}
                     </div>
-
-                    {showAddModal && <AddCandidateModal />}
-                    <SplitPanel />
-                </div>
-            );
+                );
+            }
 
         };
 
