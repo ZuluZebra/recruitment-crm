@@ -64,6 +64,11 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(100px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
         .login-title {
             text-align: center;
             color: #2d3748;
@@ -715,6 +720,7 @@
             const [searchTerm, setSearchTerm] = useState('');
             const [loading, setLoading] = useState(false);
             const [dbConnected, setDbConnected] = useState(false);
+            const [notification, setNotification] = useState('');
 
             const user = { 
                 id: 1, 
@@ -744,6 +750,7 @@
 
             const loadData = async () => {
                 setLoading(true);
+                console.log('Loading data...');
                 
                 // Test database connection
                 const { data, error } = await supabase.select('candidates');
@@ -751,9 +758,10 @@
                 if (!error) {
                     setDbConnected(true);
                     setCandidates(data || []);
-                    console.log('Loaded candidates from database:', data?.length || 0);
+                    console.log('✅ Database connected - loaded candidates:', data?.length || 0);
                 } else {
                     setDbConnected(false);
+                    console.log('❌ Database connection failed, using demo data:', error);
                     // Use demo data
                     setCandidates([
                         {
@@ -777,10 +785,55 @@
                             created_at: '2025-05-29T09:15:00Z'
                         }
                     ]);
-                    console.log('Using demo data');
                 }
                 
                 setLoading(false);
+            };
+
+            // Enhanced save function with better error handling
+            const saveCandidate = async (candidateData) => {
+                console.log('💾 Saving candidate:', candidateData);
+                
+                try {
+                    if (dbConnected) {
+                        // Try to save to database first
+                        const { data, error } = await supabase.insert('candidates', candidateData);
+                        
+                        if (!error && data?.[0]) {
+                            // Database save successful
+                            console.log('✅ Database save successful:', data[0]);
+                            setCandidates(prev => [data[0], ...prev]);
+                            showNotification('✅ Candidate saved to database');
+                            return true;
+                        } else {
+                            // Database save failed, save locally
+                            console.log('❌ Database save failed, saving locally:', error);
+                            const localCandidate = { ...candidateData, id: Date.now() };
+                            setCandidates(prev => [localCandidate, ...prev]);
+                            showNotification('⚠️ Saved locally (database unavailable)');
+                            return false;
+                        }
+                    } else {
+                        // No database connection, save locally
+                        console.log('💾 No database connection, saving locally');
+                        const localCandidate = { ...candidateData, id: Date.now() };
+                        setCandidates(prev => [localCandidate, ...prev]);
+                        showNotification('💾 Candidate saved locally');
+                        return false;
+                    }
+                } catch (error) {
+                    // Error occurred, save locally as fallback
+                    console.error('❌ Save error, using local fallback:', error);
+                    const localCandidate = { ...candidateData, id: Date.now() };
+                    setCandidates(prev => [localCandidate, ...prev]);
+                    showNotification('⚠️ Saved locally (connection error)');
+                    return false;
+                }
+            };
+
+            const showNotification = (message) => {
+                setNotification(message);
+                setTimeout(() => setNotification(''), 3000);
             };
 
             const handleLogin = () => {
@@ -855,26 +908,60 @@
             };
 
             const updateScore = async (candidateId, newScore) => {
-                const updatedCandidate = candidates.find(c => c.id === candidateId);
-                if (!updatedCandidate) return;
+                console.log('📊 Updating score for candidate:', candidateId, 'to:', newScore);
+                
+                const candidateToUpdate = candidates.find(c => c.id === candidateId);
+                if (!candidateToUpdate) {
+                    console.error('Candidate not found:', candidateId);
+                    return;
+                }
 
-                const updated = { ...updatedCandidate, score: newScore };
-                setCandidates(prev => prev.map(c => c.id === candidateId ? updated : c));
+                const updatedCandidate = { ...candidateToUpdate, score: newScore };
+                
+                // Update local state immediately for better UX
+                setCandidates(prev => prev.map(c => c.id === candidateId ? updatedCandidate : c));
 
+                // Try to update database if connected
                 if (dbConnected) {
-                    await supabase.update('candidates', { score: newScore }, `id=eq.${candidateId}`);
+                    try {
+                        const { error } = await supabase.update('candidates', { score: newScore }, `id=eq.${candidateId}`);
+                        if (error) {
+                            console.error('❌ Database score update failed:', error);
+                        } else {
+                            console.log('✅ Score updated in database');
+                        }
+                    } catch (error) {
+                        console.error('❌ Score update error:', error);
+                    }
                 }
             };
 
             const updateStatus = async (candidateId, newStatus) => {
-                const updatedCandidate = candidates.find(c => c.id === candidateId);
-                if (!updatedCandidate) return;
+                console.log('🔄 Updating status for candidate:', candidateId, 'to:', newStatus);
+                
+                const candidateToUpdate = candidates.find(c => c.id === candidateId);
+                if (!candidateToUpdate) {
+                    console.error('Candidate not found:', candidateId);
+                    return;
+                }
 
-                const updated = { ...updatedCandidate, status: newStatus };
-                setCandidates(prev => prev.map(c => c.id === candidateId ? updated : c));
+                const updatedCandidate = { ...candidateToUpdate, status: newStatus };
+                
+                // Update local state immediately for better UX
+                setCandidates(prev => prev.map(c => c.id === candidateId ? updatedCandidate : c));
 
+                // Try to update database if connected
                 if (dbConnected) {
-                    await supabase.update('candidates', { status: newStatus }, `id=eq.${candidateId}`);
+                    try {
+                        const { error } = await supabase.update('candidates', { status: newStatus }, `id=eq.${candidateId}`);
+                        if (error) {
+                            console.error('❌ Database status update failed:', error);
+                        } else {
+                            console.log('✅ Status updated in database');
+                        }
+                    } catch (error) {
+                        console.error('❌ Status update error:', error);
+                    }
                 }
             };
 
@@ -890,28 +977,46 @@
 
                 const handleSubmit = async (e) => {
                     e.preventDefault();
+                    console.log('📝 Form submitted with data:', formData);
+                    
+                    // Validate required fields
+                    if (!formData.name || !formData.job_title || !formData.company) {
+                        alert('Please fill in all required fields: Name, Job Title, and Company');
+                        return;
+                    }
                     
                     const newCandidate = {
-                        ...formData,
+                        name: formData.name,
+                        email: formData.email || '',
+                        phone: formData.phone || '',
+                        job_title: formData.job_title,
+                        company: formData.company,
+                        location: formData.location || '',
                         status: 'new',
                         score: 5,
                         added_by: currentUser.name,
-                        created_at: new Date().toISOString()
+                        created_at: new Date().toISOString(),
+                        last_updated: new Date().toISOString()
                     };
 
-                    if (dbConnected) {
-                        const { data, error } = await supabase.insert('candidates', newCandidate);
-                        if (!error && data?.[0]) {
-                            setCandidates(prev => [data[0], ...prev]);
-                        }
+                    console.log('💾 Attempting to save candidate:', newCandidate);
+                    
+                    // Use the enhanced save function
+                    const success = await saveCandidate(newCandidate);
+                    
+                    if (success) {
+                        console.log('✅ Candidate saved successfully to database');
                     } else {
-                        setCandidates(prev => [{ ...newCandidate, id: Date.now() }, ...prev]);
+                        console.log('⚠️ Candidate saved locally (database unavailable)');
                     }
 
+                    // Close modal and reset form
                     setShowAddModal(false);
                     setFormData({
                         name: '', email: '', job_title: '', company: '', phone: '', location: ''
                     });
+                    
+                    console.log('📊 Current candidates count:', candidates.length + 1);
                 };
 
                 return (
@@ -983,9 +1088,12 @@
                         <h1 className="header-title">
                             RecruitPro CRM
                             {dbConnected ? 
-                                <span style={{fontSize: '12px', color: 'green', marginLeft: '10px'}}>● Database Connected</span> :
-                                <span style={{fontSize: '12px', color: 'orange', marginLeft: '10px'}}>● Demo Mode</span>
+                                <span style={{fontSize: '12px', color: '#48bb78', marginLeft: '10px', fontWeight: '600'}}>● Database Connected</span> :
+                                <span style={{fontSize: '12px', color: '#ed8936', marginLeft: '10px', fontWeight: '600'}}>● Local Mode</span>
                             }
+                            <span style={{fontSize: '11px', color: '#718096', marginLeft: '10px', fontWeight: '400'}}>
+                                ({candidates.length} candidates)
+                            </span>
                         </h1>
                         
                         <div className="user-info">
@@ -1099,6 +1207,28 @@
                     </div>
 
                     {showAddModal && <AddCandidateModal />}
+                    
+                    {/* Notification */}
+                    {notification && (
+                        <div style={{
+                            position: 'fixed',
+                            top: '20px',
+                            right: '20px',
+                            background: 'rgba(255, 255, 255, 0.95)',
+                            backdropFilter: 'blur(10px)',
+                            padding: '15px 25px',
+                            borderRadius: '12px',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                            border: '1px solid rgba(102, 126, 234, 0.3)',
+                            zIndex: 2000,
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: '#2d3748',
+                            animation: 'slideInRight 0.3s ease-out'
+                        }}>
+                            {notification}
+                        </div>
+                    )}
                 </div>
             );
         };
