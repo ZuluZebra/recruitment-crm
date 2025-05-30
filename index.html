@@ -117,14 +117,14 @@
         .password-input {
             width: 100%;
             padding: 20px 24px;
-            border: 2px solid rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 20px;
             font-size: 16px;
             margin-bottom: 25px;
             box-sizing: border-box;
-            background: rgba(255, 255, 255, 0.05) !important;
-            color: #ffffff !important;
-            font-weight: 500;
+            background: rgba(255, 255, 255, 0.15) !important;
+            color: #1a1a3a !important;
+            font-weight: 600;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(10px);
         }
@@ -132,16 +132,17 @@
         .password-input:focus {
             outline: none;
             border-color: #8b5cf6;
-            background: rgba(255, 255, 255, 0.1) !important;
+            background: rgba(255, 255, 255, 0.25) !important;
             box-shadow: 
                 0 0 0 4px rgba(139, 92, 246, 0.2),
                 0 8px 25px rgba(139, 92, 246, 0.15);
             transform: translateY(-2px);
+            color: #0f0f23 !important;
         }
         
         .password-input::placeholder {
-            color: #94a3b8;
-            font-weight: 400;
+            color: #64748b;
+            font-weight: 500;
         }
         
         .login-button {
@@ -1415,22 +1416,39 @@
                             <p className="login-subtitle">Next Generation Recruitment Platform</p>
                             
                             <div className="user-avatar">CM</div>
-                            <h3 style={{textAlign: 'center', marginBottom: '20px', color: '#e2e8f0', fontWeight: '600'}}>
+                            <h3 style={{textAlign: 'center', marginBottom: '30px', color: '#e2e8f0', fontWeight: '600'}}>
                                 Chris van der Merwe
                             </h3>
                             
-                            <input
-                                type="password"
-                                className="password-input"
-                                placeholder="Enter password"
-                                value={loginPassword}
-                                onChange={(e) => setLoginPassword(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                            />
+                            <div style={{marginBottom: '15px'}}>
+                                <input
+                                    type="password"
+                                    className="password-input"
+                                    placeholder="Enter password (NextGen)"
+                                    value={loginPassword}
+                                    onChange={(e) => setLoginPassword(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleLogin();
+                                        }
+                                    }}
+                                    autoFocus
+                                />
+                                <div style={{
+                                    fontSize: '12px', 
+                                    color: '#8b5cf6', 
+                                    textAlign: 'center',
+                                    fontWeight: '500'
+                                }}>
+                                    💡 Password: NextGen
+                                </div>
+                            </div>
                             
                             <button 
                                 className="login-button"
                                 onClick={handleLogin}
+                                disabled={!loginPassword.trim()}
                             >
                                 Sign In
                             </button>
