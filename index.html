@@ -1072,6 +1072,12 @@
             const [loginSessions, setLoginSessions] = useState([]);
             const [projects, setProjects] = useState([]);
             const [showProjectModal, setShowProjectModal] = useState(false);
+            const [interviews, setInterviews] = useState([]);
+            const [interviewTemplates, setInterviewTemplates] = useState([]);
+            const [showInterviewModal, setShowInterviewModal] = useState(false);
+            const [showTemplateModal, setShowTemplateModal] = useState(false);
+            const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+            const [selectedInterview, setSelectedInterview] = useState(null);
             
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
@@ -1083,6 +1089,175 @@
                 role: 'admin', 
                 avatar: 'CM', 
                 password: 'NextGen' 
+            };
+
+            // Interview Management Functions
+            const createInterviewTemplate = async (templateData) => {
+                const newTemplate = {
+                    ...templateData,
+                    id: Date.now(),
+                    created_by: currentUser.name,
+                    created_at: new Date().toISOString()
+                };
+
+                const newTemplates = [newTemplate, ...interviewTemplates];
+                setInterviewTemplates(newTemplates);
+                saveToLocal('recruitpro_interview_templates', newTemplates);
+
+                if (dbConnected) {
+                    await supabase.insert('interview_templates', newTemplate);
+                }
+            };
+
+            const scheduleInterview = async (interviewData) => {
+                const newInterview = {
+                    ...interviewData,
+                    id: Date.now(),
+                    scheduled_by: currentUser.name,
+                    scheduled_at: new Date().toISOString(),
+                    status: 'scheduled'
+                };
+
+                const newInterviews = [newInterview, ...interviews];
+                setInterviews(newInterviews);
+                saveToLocal('recruitpro_interviews', newInterviews);
+
+                // Add timeline entry for candidate
+                addTimelineEntry(interviewData.candidate_id, 'Interview Scheduled', 
+                    `${interviewData.template_name} scheduled for ${new Date(interviewData.interview_date).toLocaleDateString()}`, 'interview');
+
+                if (dbConnected) {
+                    await supabase.insert('interviews', newInterview);
+                }
+            };
+
+            const submitInterviewFeedback = async (interviewId, feedbackData) => {
+                const interview = interviews.find(i => i.id === interviewId);
+                if (!interview) return;
+
+                // AI-powered sentiment analysis and summary
+                const aiAnalysis = analyzeInterviewFeedback(feedbackData);
+
+                const updatedInterview = {
+                    ...interview,
+                    feedback: feedbackData,
+                    ai_summary: aiAnalysis.summary,
+                    sentiment: aiAnalysis.sentiment,
+                    recommended_action: aiAnalysis.recommendedAction,
+                    completed_at: new Date().toISOString(),
+                    status: 'completed'
+                };
+
+                const newInterviews = interviews.map(i => i.id === interviewId ? updatedInterview : i);
+                setInterviews(newInterviews);
+                saveToLocal('recruitpro_interviews', newInterviews);
+
+                // Add timeline entry for candidate
+                addTimelineEntry(interview.candidate_id, 'Interview Completed', 
+                    `${interview.template_name} completed - ${aiAnalysis.sentiment} sentiment`, 'interview');
+
+                if (dbConnected) {
+                    await supabase.update('interviews', {
+                        feedback: feedbackData,
+                        ai_summary: aiAnalysis.summary,
+                        sentiment: aiAnalysis.sentiment,
+                        status: 'completed'
+                    }, `id=eq.${interviewId}`);
+                }
+            };
+
+            // AI-powered feedback analysis (mock implementation)
+            const analyzeInterviewFeedback = (feedbackData) => {
+                const { rating, notes, strengths, concerns, recommendation } = feedbackData;
+                
+                // Sentiment analysis based on rating and keywords
+                let sentiment = 'neutral';
+                let sentimentScore = 0;
+                
+                if (rating >= 8) {
+                    sentiment = 'very_positive';
+                    sentimentScore = 0.9;
+                } else if (rating >= 6) {
+                    sentiment = 'positive';
+                    sentimentScore = 0.7;
+                } else if (rating >= 4) {
+                    sentiment = 'neutral';
+                    sentimentScore = 0.5;
+                } else if (rating >= 2) {
+                    sentiment = 'negative';
+                    sentimentScore = 0.3;
+                } else {
+                    sentiment = 'very_negative';
+                    sentimentScore = 0.1;
+                }
+
+                // Keyword analysis for sentiment adjustment
+                const positiveKeywords = ['excellent', 'outstanding', 'impressive', 'strong', 'exceptional', 'great', 'perfect', 'amazing', 'brilliant'];
+                const negativeKeywords = ['poor', 'weak', 'concerning', 'lacking', 'insufficient', 'problematic', 'disappointing', 'inadequate'];
+                
+                const allText = (notes + ' ' + strengths + ' ' + concerns).toLowerCase();
+                const positiveCount = positiveKeywords.filter(word => allText.includes(word)).length;
+                const negativeCount = negativeKeywords.filter(word => allText.includes(word)).length;
+                
+                // Adjust sentiment based on keywords
+                if (positiveCount > negativeCount + 1) {
+                    sentimentScore = Math.min(1.0, sentimentScore + 0.1);
+                } else if (negativeCount > positiveCount + 1) {
+                    sentimentScore = Math.max(0.0, sentimentScore - 0.1);
+                }
+
+                // Generate AI summary
+                const summary = generateInterviewSummary(feedbackData, sentiment);
+                
+                // Recommend action
+                let recommendedAction = 'proceed';
+                if (rating >= 7) {
+                    recommendedAction = 'advance';
+                } else if (rating <= 3) {
+                    recommendedAction = 'decline';
+                } else if (rating >= 5) {
+                    recommendedAction = 'proceed';
+                } else {
+                    recommendedAction = 'review';
+                }
+
+                return {
+                    sentiment,
+                    sentimentScore,
+                    summary,
+                    recommendedAction,
+                    confidence: Math.min(0.95, 0.6 + (Math.abs(rating - 5) / 5) * 0.3) // Higher confidence for extreme ratings
+                };
+            };
+
+            const generateInterviewSummary = (feedbackData, sentiment) => {
+                const { rating, notes, strengths, concerns, recommendation } = feedbackData;
+                
+                let summary = `Interview completed with ${rating}/10 rating. `;
+                
+                if (sentiment === 'very_positive') {
+                    summary += "Candidate demonstrated exceptional performance across all areas. ";
+                } else if (sentiment === 'positive') {
+                    summary += "Candidate showed strong capabilities with notable strengths. ";
+                } else if (sentiment === 'neutral') {
+                    summary += "Mixed feedback with both strengths and areas for improvement. ";
+                } else if (sentiment === 'negative') {
+                    summary += "Several concerns raised during the interview process. ";
+                } else {
+                    summary += "Significant challenges identified in candidate assessment. ";
+                }
+
+                if (strengths.length > 0) {
+                    const strengthWords = strengths.split(' ').slice(0, 10).join(' ');
+                    summary += `Key strengths: ${strengthWords}... `;
+                }
+
+                if (concerns.length > 0) {
+                    const concernWords = concerns.split(' ').slice(0, 10).join(' ');
+                    summary += `Areas of concern: ${concernWords}... `;
+                }
+
+                return summary.trim();
             };
 
             const statuses = [
@@ -1133,6 +1308,14 @@
                 // Load projects
                 const localProjects = loadFromLocal('recruitpro_projects') || [];
                 setProjects(localProjects);
+                
+                // Load interviews
+                const localInterviews = loadFromLocal('recruitpro_interviews') || [];
+                setInterviews(localInterviews);
+                
+                // Load interview templates
+                const localTemplates = loadFromLocal('recruitpro_interview_templates') || [];
+                setInterviewTemplates(localTemplates);
                 
                 // First try to load from localStorage
                 const localCandidates = loadFromLocal('recruitpro_candidates');
@@ -1255,6 +1438,62 @@
                         ];
                         setProjects(demoProjects);
                         saveToLocal('recruitpro_projects', demoProjects);
+                    }
+                    
+                    // If no interview templates, create demo templates
+                    if (localTemplates.length === 0) {
+                        const demoTemplates = [
+                            {
+                                id: 1,
+                                name: 'Technical Screen - Frontend',
+                                type: 'technical',
+                                duration: 60,
+                                description: 'Initial technical assessment for frontend developers',
+                                questions: [
+                                    'Tell me about your experience with React and modern JavaScript',
+                                    'How do you handle state management in complex applications?',
+                                    'Walk me through your approach to responsive design',
+                                    'Describe a challenging bug you solved recently',
+                                    'How do you ensure code quality and maintainability?'
+                                ],
+                                created_by: 'Chris van der Merwe',
+                                created_at: '2025-05-20T10:00:00Z'
+                            },
+                            {
+                                id: 2,
+                                name: 'Behavioral Interview',
+                                type: 'behavioral',
+                                duration: 45,
+                                description: 'Cultural fit and soft skills assessment',
+                                questions: [
+                                    'Tell me about yourself and your career journey',
+                                    'Describe a time when you had to work with a difficult team member',
+                                    'How do you handle tight deadlines and pressure?',
+                                    'What motivates you in your work?',
+                                    'Where do you see yourself in 3-5 years?'
+                                ],
+                                created_by: 'Chris van der Merwe',
+                                created_at: '2025-05-20T10:30:00Z'
+                            },
+                            {
+                                id: 3,
+                                name: 'Leadership Assessment',
+                                type: 'leadership',
+                                duration: 75,
+                                description: 'Management and leadership capabilities',
+                                questions: [
+                                    'Describe your leadership philosophy',
+                                    'How do you handle conflict within your team?',
+                                    'Tell me about a time you had to make a difficult decision',
+                                    'How do you foster innovation and growth in your team?',
+                                    'What are your strategies for performance management?'
+                                ],
+                                created_by: 'Chris van der Merwe',
+                                created_at: '2025-05-20T11:00:00Z'
+                            }
+                        ];
+                        setInterviewTemplates(demoTemplates);
+                        saveToLocal('recruitpro_interview_templates', demoTemplates);
                     }
                 }
                 
@@ -1624,6 +1863,14 @@
                                 <div className="stat-label">Average Score</div>
                             </div>
                             <div className="stat-card">
+                                <div className="stat-number">{interviews.length}</div>
+                                <div className="stat-label">Total Interviews</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{interviews.filter(i => i.status === 'completed').length}</div>
+                                <div className="stat-label">Completed Interviews</div>
+                            </div>
+                            <div className="stat-card">
                                 <div className="stat-number">{loginSessions.length}</div>
                                 <div className="stat-label">Login Sessions</div>
                             </div>
@@ -1955,7 +2202,459 @@
                 );
             };
 
-            // Create Project Modal
+            // Create Interview Template Modal
+            const CreateTemplateModal = () => {
+                const [formData, setFormData] = useState({
+                    name: '',
+                    type: 'technical',
+                    duration: 60,
+                    description: '',
+                    questions: ['']
+                });
+
+                const addQuestion = () => {
+                    setFormData({
+                        ...formData,
+                        questions: [...formData.questions, '']
+                    });
+                };
+
+                const updateQuestion = (index, value) => {
+                    const newQuestions = [...formData.questions];
+                    newQuestions[index] = value;
+                    setFormData({
+                        ...formData,
+                        questions: newQuestions
+                    });
+                };
+
+                const removeQuestion = (index) => {
+                    if (formData.questions.length > 1) {
+                        const newQuestions = formData.questions.filter((_, i) => i !== index);
+                        setFormData({
+                            ...formData,
+                            questions: newQuestions
+                        });
+                    }
+                };
+
+                const handleSubmit = async (e) => {
+                    e.preventDefault();
+                    await createInterviewTemplate({
+                        ...formData,
+                        questions: formData.questions.filter(q => q.trim() !== '')
+                    });
+                    setShowTemplateModal(false);
+                    setFormData({
+                        name: '',
+                        type: 'technical',
+                        duration: 60,
+                        description: '',
+                        questions: ['']
+                    });
+                };
+
+                return (
+                    <div className="modal">
+                        <div className="modal-content">
+                            <h2 style={{marginBottom: '20px'}}>Create Interview Template</h2>
+                            
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-group">
+                                    <label className="form-label">Template Name *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        required
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        placeholder="e.g., Technical Screen - Frontend"
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Interview Type</label>
+                                    <select
+                                        className="form-input"
+                                        value={formData.type}
+                                        onChange={(e) => setFormData({...formData, type: e.target.value})}
+                                    >
+                                        <option value="technical">Technical</option>
+                                        <option value="behavioral">Behavioral</option>
+                                        <option value="leadership">Leadership</option>
+                                        <option value="cultural">Cultural Fit</option>
+                                        <option value="final">Final Round</option>
+                                    </select>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Duration (minutes)</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        min="15"
+                                        max="180"
+                                        value={formData.duration}
+                                        onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value) || 60})}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Description</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                        placeholder="Describe the purpose and focus of this interview..."
+                                        style={{minHeight: '80px'}}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Interview Questions *</label>
+                                    {formData.questions.map((question, index) => (
+                                        <div key={index} style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={question}
+                                                onChange={(e) => updateQuestion(index, e.target.value)}
+                                                placeholder={`Question ${index + 1}...`}
+                                                style={{flex: 1}}
+                                            />
+                                            {formData.questions.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeQuestion(index)}
+                                                    style={{
+                                                        background: '#fc8181',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '8px',
+                                                        padding: '8px 12px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={addQuestion}
+                                        style={{
+                                            background: '#48bb78',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            padding: '8px 16px',
+                                            cursor: 'pointer',
+                                            fontSize: '14px'
+                                        }}
+                                    >
+                                        + Add Question
+                                    </button>
+                                </div>
+                                
+                                <div className="form-buttons">
+                                    <button type="button" className="btn-secondary" onClick={() => setShowTemplateModal(false)}>
+                                        Cancel
+                                    </button>
+                                    <button type="submit" className="btn-primary">
+                                        Create Template
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            };
+
+            // Schedule Interview Modal
+            const ScheduleInterviewModal = () => {
+                const [formData, setFormData] = useState({
+                    candidate_id: '',
+                    template_id: '',
+                    interview_date: '',
+                    interviewer: currentUser.name,
+                    notes: ''
+                });
+
+                const handleSubmit = async (e) => {
+                    e.preventDefault();
+                    
+                    const template = interviewTemplates.find(t => t.id === parseInt(formData.template_id));
+                    const candidate = candidates.find(c => c.id === parseInt(formData.candidate_id));
+                    
+                    await scheduleInterview({
+                        ...formData,
+                        candidate_id: parseInt(formData.candidate_id),
+                        template_id: parseInt(formData.template_id),
+                        template_name: template.name,
+                        candidate_name: candidate.name,
+                        duration: template.duration,
+                        type: template.type
+                    });
+                    
+                    setShowInterviewModal(false);
+                    setFormData({
+                        candidate_id: '',
+                        template_id: '',
+                        interview_date: '',
+                        interviewer: currentUser.name,
+                        notes: ''
+                    });
+                };
+
+                return (
+                    <div className="modal">
+                        <div className="modal-content">
+                            <h2 style={{marginBottom: '20px'}}>Schedule Interview</h2>
+                            
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-group">
+                                    <label className="form-label">Candidate *</label>
+                                    <select
+                                        className="form-input"
+                                        required
+                                        value={formData.candidate_id}
+                                        onChange={(e) => setFormData({...formData, candidate_id: e.target.value})}
+                                    >
+                                        <option value="">Select Candidate</option>
+                                        {candidates.map(candidate => (
+                                            <option key={candidate.id} value={candidate.id}>
+                                                {candidate.name} - {candidate.job_title}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Interview Template *</label>
+                                    <select
+                                        className="form-input"
+                                        required
+                                        value={formData.template_id}
+                                        onChange={(e) => setFormData({...formData, template_id: e.target.value})}
+                                    >
+                                        <option value="">Select Template</option>
+                                        {interviewTemplates.map(template => (
+                                            <option key={template.id} value={template.id}>
+                                                {template.name} ({template.duration} min)
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Date & Time *</label>
+                                    <input
+                                        type="datetime-local"
+                                        className="form-input"
+                                        required
+                                        value={formData.interview_date}
+                                        onChange={(e) => setFormData({...formData, interview_date: e.target.value})}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Interviewer</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={formData.interviewer}
+                                        onChange={(e) => setFormData({...formData, interviewer: e.target.value})}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Notes</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        value={formData.notes}
+                                        onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                        placeholder="Additional notes for the interview..."
+                                        style={{minHeight: '80px'}}
+                                    />
+                                </div>
+                                
+                                <div className="form-buttons">
+                                    <button type="button" className="btn-secondary" onClick={() => setShowInterviewModal(false)}>
+                                        Cancel
+                                    </button>
+                                    <button type="submit" className="btn-primary">
+                                        Schedule Interview
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            };
+
+            // Interview Feedback Modal
+            const InterviewFeedbackModal = () => {
+                if (!selectedInterview) return null;
+
+                const template = interviewTemplates.find(t => t.id === selectedInterview.template_id);
+                const candidate = candidates.find(c => c.id === selectedInterview.candidate_id);
+                
+                const [feedbackData, setFeedbackData] = useState({
+                    rating: 5,
+                    notes: '',
+                    strengths: '',
+                    concerns: '',
+                    recommendation: 'proceed',
+                    question_responses: template?.questions.map(q => ({ question: q, response: '' })) || []
+                });
+
+                const handleSubmit = async (e) => {
+                    e.preventDefault();
+                    await submitInterviewFeedback(selectedInterview.id, feedbackData);
+                    setShowFeedbackModal(false);
+                    setSelectedInterview(null);
+                };
+
+                return (
+                    <div className="modal">
+                        <div className="modal-content" style={{maxWidth: '700px'}}>
+                            <h2 style={{marginBottom: '20px'}}>Interview Feedback</h2>
+                            
+                            <div style={{
+                                background: 'rgba(102, 126, 234, 0.05)',
+                                padding: '15px',
+                                borderRadius: '12px',
+                                marginBottom: '20px'
+                            }}>
+                                <div style={{fontWeight: '600', color: '#2d3748'}}>
+                                    {candidate?.name} - {template?.name}
+                                </div>
+                                <div style={{fontSize: '14px', color: '#718096', marginTop: '5px'}}>
+                                    {new Date(selectedInterview.interview_date).toLocaleDateString()} | 
+                                    {selectedInterview.interviewer} | {template?.duration} minutes
+                                </div>
+                            </div>
+                            
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-group">
+                                    <label className="form-label">Overall Rating *</label>
+                                    <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="10"
+                                            value={feedbackData.rating}
+                                            onChange={(e) => setFeedbackData({...feedbackData, rating: parseInt(e.target.value)})}
+                                            style={{flex: 1}}
+                                        />
+                                        <span style={{
+                                            fontWeight: '700',
+                                            fontSize: '18px',
+                                            color: '#667eea',
+                                            minWidth: '40px'
+                                        }}>
+                                            {feedbackData.rating}/10
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Key Strengths</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        value={feedbackData.strengths}
+                                        onChange={(e) => setFeedbackData({...feedbackData, strengths: e.target.value})}
+                                        placeholder="What did the candidate do well?"
+                                        style={{minHeight: '80px'}}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Areas of Concern</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        value={feedbackData.concerns}
+                                        onChange={(e) => setFeedbackData({...feedbackData, concerns: e.target.value})}
+                                        placeholder="Any concerns or areas for improvement?"
+                                        style={{minHeight: '80px'}}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Interview Notes</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        value={feedbackData.notes}
+                                        onChange={(e) => setFeedbackData({...feedbackData, notes: e.target.value})}
+                                        placeholder="Detailed notes from the interview..."
+                                        style={{minHeight: '100px'}}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Recommendation</label>
+                                    <select
+                                        className="form-input"
+                                        value={feedbackData.recommendation}
+                                        onChange={(e) => setFeedbackData({...feedbackData, recommendation: e.target.value})}
+                                    >
+                                        <option value="advance">Advance to Next Round</option>
+                                        <option value="proceed">Proceed with Caution</option>
+                                        <option value="review">Further Review Needed</option>
+                                        <option value="decline">Do Not Proceed</option>
+                                    </select>
+                                </div>
+                                
+                                {/* Question Responses */}
+                                {template?.questions && template.questions.length > 0 && (
+                                    <div className="form-group">
+                                        <label className="form-label">Question Responses (Optional)</label>
+                                        {template.questions.map((question, index) => (
+                                            <div key={index} style={{marginBottom: '15px'}}>
+                                                <div style={{
+                                                    fontSize: '14px',
+                                                    fontWeight: '600',
+                                                    color: '#4a5568',
+                                                    marginBottom: '5px'
+                                                }}>
+                                                    Q{index + 1}: {question}
+                                                </div>
+                                                <textarea
+                                                    className="form-textarea"
+                                                    value={feedbackData.question_responses[index]?.response || ''}
+                                                    onChange={(e) => {
+                                                        const newResponses = [...feedbackData.question_responses];
+                                                        newResponses[index] = {
+                                                            question,
+                                                            response: e.target.value
+                                                        };
+                                                        setFeedbackData({...feedbackData, question_responses: newResponses});
+                                                    }}
+                                                    placeholder="Candidate's response and your assessment..."
+                                                    style={{minHeight: '60px'}}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                <div className="form-buttons">
+                                    <button type="button" className="btn-secondary" onClick={() => {
+                                        setShowFeedbackModal(false);
+                                        setSelectedInterview(null);
+                                    }}>
+                                        Cancel
+                                    </button>
+                                    <button type="submit" className="btn-primary">
+                                        Submit Feedback
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            };
             const CreateProjectModal = () => {
                 const [formData, setFormData] = useState({
                     name: '',
@@ -2300,6 +2999,172 @@
                                 </div>
                             </div>
 
+                            {/* Interview History Section */}
+                            <div style={{marginTop: '30px'}}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+                                    <h3 style={{color: '#2d3748'}}>Interview History</h3>
+                                    <button 
+                                        className="btn-secondary"
+                                        onClick={() => {
+                                            setShowInterviewModal(true);
+                                            setShowDetailModal(false);
+                                        }}
+                                        style={{padding: '6px 12px', fontSize: '14px'}}
+                                    >
+                                        📅 Schedule Interview
+                                    </button>
+                                </div>
+                                
+                                {interviews.filter(i => i.candidate_id === selectedCandidate.id).length > 0 ? (
+                                    <div style={{display: 'grid', gap: '15px'}}>
+                                        {interviews
+                                            .filter(i => i.candidate_id === selectedCandidate.id)
+                                            .sort((a, b) => new Date(b.interview_date) - new Date(a.interview_date))
+                                            .map(interview => {
+                                                const template = interviewTemplates.find(t => t.id === interview.template_id);
+                                                const sentimentColor = {
+                                                    'very_positive': '#48bb78',
+                                                    'positive': '#68d391',
+                                                    'neutral': '#ed8936',
+                                                    'negative': '#fc8181',
+                                                    'very_negative': '#e53e3e'
+                                                }[interview.sentiment] || '#a0aec0';
+
+                                                return (
+                                                    <div key={interview.id} style={{
+                                                        background: 'rgba(102, 126, 234, 0.05)',
+                                                        padding: '15px',
+                                                        borderRadius: '12px',
+                                                        border: '1px solid rgba(102, 126, 234, 0.1)'
+                                                    }}>
+                                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px'}}>
+                                                            <div>
+                                                                <div style={{fontWeight: '600', color: '#2d3748'}}>
+                                                                    {interview.template_name || template?.name}
+                                                                </div>
+                                                                <div style={{fontSize: '14px', color: '#4a5568'}}>
+                                                                    {new Date(interview.interview_date).toLocaleDateString()} | 
+                                                                    {interview.interviewer} | 
+                                                                    {interview.duration || template?.duration} min
+                                                                </div>
+                                                            </div>
+                                                            <div style={{textAlign: 'right'}}>
+                                                                {interview.status === 'completed' ? (
+                                                                    <>
+                                                                        <div style={{
+                                                                            background: sentimentColor,
+                                                                            color: 'white',
+                                                                            padding: '4px 8px',
+                                                                            borderRadius: '8px',
+                                                                            fontSize: '11px',
+                                                                            fontWeight: '600',
+                                                                            textTransform: 'uppercase',
+                                                                            marginBottom: '5px'
+                                                                        }}>
+                                                                            {interview.sentiment?.replace('_', ' ')}
+                                                                        </div>
+                                                                        <div style={{fontSize: '16px', fontWeight: '700', color: '#2d3748'}}>
+                                                                            {interview.feedback?.rating || 0}/10
+                                                                        </div>
+                                                                    </>
+                                                                ) : (
+                                                                    <div style={{
+                                                                        background: '#667eea',
+                                                                        color: 'white',
+                                                                        padding: '4px 8px',
+                                                                        borderRadius: '8px',
+                                                                        fontSize: '11px',
+                                                                        fontWeight: '600',
+                                                                        textTransform: 'uppercase'
+                                                                    }}>
+                                                                        SCHEDULED
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {interview.status === 'completed' && interview.ai_summary && (
+                                                            <div style={{
+                                                                background: 'rgba(255, 255, 255, 0.7)',
+                                                                padding: '12px',
+                                                                borderRadius: '8px',
+                                                                marginTop: '10px'
+                                                            }}>
+                                                                <div style={{fontSize: '12px', color: '#667eea', fontWeight: '600', marginBottom: '5px'}}>
+                                                                    🤖 AI SUMMARY
+                                                                </div>
+                                                                <div style={{fontSize: '13px', color: '#4a5568', lineHeight: '1.4'}}>
+                                                                    {interview.ai_summary}
+                                                                </div>
+                                                                {interview.recommended_action && (
+                                                                    <div style={{
+                                                                        fontSize: '12px',
+                                                                        color: '#667eea',
+                                                                        fontWeight: '600',
+                                                                        marginTop: '8px'
+                                                                    }}>
+                                                                        Recommended: {interview.recommended_action.replace('_', ' ').toUpperCase()}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        
+                                                        {interview.status === 'completed' && interview.feedback && (
+                                                            <>
+                                                                {interview.feedback.strengths && (
+                                                                    <div style={{marginTop: '10px'}}>
+                                                                        <div style={{fontSize: '12px', fontWeight: '600', color: '#48bb78', marginBottom: '5px'}}>
+                                                                            ✅ STRENGTHS
+                                                                        </div>
+                                                                        <div style={{fontSize: '13px', color: '#4a5568'}}>
+                                                                            {interview.feedback.strengths}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                
+                                                                {interview.feedback.concerns && (
+                                                                    <div style={{marginTop: '10px'}}>
+                                                                        <div style={{fontSize: '12px', fontWeight: '600', color: '#fc8181', marginBottom: '5px'}}>
+                                                                            ⚠️ CONCERNS
+                                                                        </div>
+                                                                        <div style={{fontSize: '13px', color: '#4a5568'}}>
+                                                                            {interview.feedback.concerns}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                        
+                                                        {interview.status === 'scheduled' && (
+                                                            <button 
+                                                                className="btn-primary"
+                                                                onClick={() => {
+                                                                    setSelectedInterview(interview);
+                                                                    setShowFeedbackModal(true);
+                                                                }}
+                                                                style={{padding: '6px 12px', fontSize: '12px', marginTop: '10px'}}
+                                                            >
+                                                                Add Feedback
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                ) : (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        color: '#a0aec0',
+                                        fontStyle: 'italic',
+                                        padding: '30px',
+                                        border: '2px dashed #e2e8f0',
+                                        borderRadius: '12px'
+                                    }}>
+                                        No interviews scheduled yet
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Notes Section */}
                             <div style={{marginTop: '30px'}}>
                                 <label className="form-label">Notes</label>
@@ -2383,7 +3248,291 @@
                 );
             };
 
-            // Pipeline View Component - Project-based
+            // Interviews View Component
+            const InterviewsView = () => {
+                const upcomingInterviews = interviews.filter(i => i.status === 'scheduled' && new Date(i.interview_date) >= new Date());
+                const completedInterviews = interviews.filter(i => i.status === 'completed');
+                const todayInterviews = interviews.filter(i => {
+                    const today = new Date().toDateString();
+                    return new Date(i.interview_date).toDateString() === today;
+                });
+
+                return (
+                    <div>
+                        <div style={{
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            marginBottom: '30px'
+                        }}>
+                            <div>
+                                <h2 style={{marginBottom: '10px', color: '#2d3748'}}>Interview Management</h2>
+                                <p style={{color: '#718096'}}>Schedule interviews, manage templates, and capture feedback</p>
+                            </div>
+                            <div style={{display: 'flex', gap: '10px'}}>
+                                <button 
+                                    className="btn-secondary"
+                                    onClick={() => setShowTemplateModal(true)}
+                                >
+                                    📝 Templates
+                                </button>
+                                <button 
+                                    className="add-button"
+                                    onClick={() => setShowInterviewModal(true)}
+                                >
+                                    📅 Schedule Interview
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Interview Statistics */}
+                        <div className="stats-grid">
+                            <div className="stat-card">
+                                <div className="stat-number">{interviews.length}</div>
+                                <div className="stat-label">Total Interviews</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{todayInterviews.length}</div>
+                                <div className="stat-label">Today</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{upcomingInterviews.length}</div>
+                                <div className="stat-label">Upcoming</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{interviewTemplates.length}</div>
+                                <div className="stat-label">Templates</div>
+                            </div>
+                        </div>
+
+                        {/* Today's Interviews */}
+                        {todayInterviews.length > 0 && (
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.95)',
+                                backdropFilter: 'blur(20px)',
+                                borderRadius: '20px',
+                                padding: '25px',
+                                border: '1px solid rgba(255, 255, 255, 0.6)',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                                marginBottom: '30px'
+                            }}>
+                                <h3 style={{marginBottom: '20px', color: '#2d3748'}}>🕒 Today's Interviews</h3>
+                                <div style={{display: 'grid', gap: '15px'}}>
+                                    {todayInterviews.map(interview => {
+                                        const candidate = candidates.find(c => c.id === interview.candidate_id);
+                                        return (
+                                            <div key={interview.id} style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: '15px',
+                                                background: 'rgba(102, 126, 234, 0.05)',
+                                                borderRadius: '12px',
+                                                border: '1px solid rgba(102, 126, 234, 0.1)'
+                                            }}>
+                                                <div>
+                                                    <div style={{fontWeight: '600', color: '#2d3748'}}>
+                                                        {candidate?.name} - {interview.template_name}
+                                                    </div>
+                                                    <div style={{fontSize: '14px', color: '#718096'}}>
+                                                        {new Date(interview.interview_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} | 
+                                                        {interview.interviewer} | {interview.duration} min
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    className="btn-primary"
+                                                    onClick={() => {
+                                                        setSelectedInterview(interview);
+                                                        setShowFeedbackModal(true);
+                                                    }}
+                                                    style={{padding: '8px 16px', fontSize: '14px'}}
+                                                >
+                                                    Add Feedback
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Upcoming Interviews */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '2fr 1fr',
+                            gap: '30px',
+                            marginBottom: '30px'
+                        }}>
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.95)',
+                                backdropFilter: 'blur(20px)',
+                                borderRadius: '20px',
+                                padding: '25px',
+                                border: '1px solid rgba(255, 255, 255, 0.6)',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+                            }}>
+                                <h3 style={{marginBottom: '20px', color: '#2d3748'}}>📅 Upcoming Interviews</h3>
+                                <div style={{maxHeight: '400px', overflowY: 'auto'}}>
+                                    {upcomingInterviews.length > 0 ? (
+                                        upcomingInterviews.map(interview => {
+                                            const candidate = candidates.find(c => c.id === interview.candidate_id);
+                                            return (
+                                                <div key={interview.id} style={{
+                                                    padding: '15px',
+                                                    marginBottom: '10px',
+                                                    background: 'rgba(102, 126, 234, 0.05)',
+                                                    borderRadius: '12px',
+                                                    border: '1px solid rgba(102, 126, 234, 0.1)',
+                                                    cursor: 'pointer'
+                                                }}
+                                                onClick={() => viewCandidateDetails(candidate)}>
+                                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                                        <div>
+                                                            <div style={{fontWeight: '600', color: '#2d3748'}}>
+                                                                {candidate?.name}
+                                                            </div>
+                                                            <div style={{fontSize: '14px', color: '#4a5568'}}>
+                                                                {interview.template_name}
+                                                            </div>
+                                                            <div style={{fontSize: '12px', color: '#718096'}}>
+                                                                {new Date(interview.interview_date).toLocaleDateString()} at {new Date(interview.interview_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                            </div>
+                                                        </div>
+                                                        <div style={{textAlign: 'right'}}>
+                                                            <div style={{fontSize: '12px', color: '#667eea', fontWeight: '600'}}>
+                                                                {interview.interviewer}
+                                                            </div>
+                                                            <div style={{fontSize: '12px', color: '#718096'}}>
+                                                                {interview.duration} min
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div style={{
+                                            textAlign: 'center',
+                                            color: '#a0aec0',
+                                            fontStyle: 'italic',
+                                            padding: '40px'
+                                        }}>
+                                            No upcoming interviews scheduled
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.95)',
+                                backdropFilter: 'blur(20px)',
+                                borderRadius: '20px',
+                                padding: '25px',
+                                border: '1px solid rgba(255, 255, 255, 0.6)',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+                            }}>
+                                <h3 style={{marginBottom: '20px', color: '#2d3748'}}>📝 Interview Templates</h3>
+                                <div style={{maxHeight: '400px', overflowY: 'auto'}}>
+                                    {interviewTemplates.map(template => (
+                                        <div key={template.id} style={{
+                                            padding: '12px',
+                                            marginBottom: '10px',
+                                            background: 'rgba(72, 187, 120, 0.05)',
+                                            borderRadius: '8px',
+                                            border: '1px solid rgba(72, 187, 120, 0.1)'
+                                        }}>
+                                            <div style={{fontWeight: '600', color: '#2d3748', fontSize: '14px'}}>
+                                                {template.name}
+                                            </div>
+                                            <div style={{fontSize: '12px', color: '#718096', marginTop: '5px'}}>
+                                                {template.type} • {template.duration} min • {template.questions.length} questions
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Recent Completed Interviews */}
+                        <div style={{
+                            background: 'rgba(255, 255, 255, 0.95)',
+                            backdropFilter: 'blur(20px)',
+                            borderRadius: '20px',
+                            padding: '25px',
+                            border: '1px solid rgba(255, 255, 255, 0.6)',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+                        }}>
+                            <h3 style={{marginBottom: '20px', color: '#2d3748'}}>✅ Recent Completed Interviews</h3>
+                            <div style={{maxHeight: '300px', overflowY: 'auto'}}>
+                                {completedInterviews.slice(0, 10).map(interview => {
+                                    const candidate = candidates.find(c => c.id === interview.candidate_id);
+                                    const sentimentColor = {
+                                        'very_positive': '#48bb78',
+                                        'positive': '#68d391',
+                                        'neutral': '#ed8936',
+                                        'negative': '#fc8181',
+                                        'very_negative': '#e53e3e'
+                                    }[interview.sentiment] || '#a0aec0';
+
+                                    return (
+                                        <div key={interview.id} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '15px',
+                                            marginBottom: '10px',
+                                            background: 'rgba(102, 126, 234, 0.05)',
+                                            borderRadius: '12px',
+                                            border: '1px solid rgba(102, 126, 234, 0.1)',
+                                            cursor: 'pointer'
+                                        }}
+                                        onClick={() => viewCandidateDetails(candidate)}>
+                                            <div style={{flex: 1}}>
+                                                <div style={{fontWeight: '600', color: '#2d3748'}}>
+                                                    {candidate?.name} - {interview.template_name}
+                                                </div>
+                                                <div style={{fontSize: '13px', color: '#4a5568', marginTop: '5px'}}>
+                                                    {interview.ai_summary}
+                                                </div>
+                                                <div style={{fontSize: '12px', color: '#718096', marginTop: '5px'}}>
+                                                    Completed: {formatTimeAgo(interview.completed_at)}
+                                                </div>
+                                            </div>
+                                            <div style={{textAlign: 'right', marginLeft: '15px'}}>
+                                                <div style={{
+                                                    background: sentimentColor,
+                                                    color: 'white',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '8px',
+                                                    fontSize: '11px',
+                                                    fontWeight: '600',
+                                                    textTransform: 'uppercase',
+                                                    marginBottom: '5px'
+                                                }}>
+                                                    {interview.sentiment?.replace('_', ' ')}
+                                                </div>
+                                                <div style={{fontSize: '14px', fontWeight: '700', color: '#2d3748'}}>
+                                                    {interview.feedback?.rating || 0}/10
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {completedInterviews.length === 0 && (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        color: '#a0aec0',
+                                        fontStyle: 'italic',
+                                        padding: '40px'
+                                    }}>
+                                        No completed interviews yet
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
             const PipelineView = () => {
                 return (
                     <div>
@@ -2866,12 +4015,30 @@
                                     </div>
                                 </div>
                                 
-                                <button 
-                                    className="view-details-btn"
-                                    onClick={() => viewCandidateDetails(candidate)}
-                                >
-                                    View Details
-                                </button>
+                                {/* Quick Actions */}
+                                <div style={{display: 'flex', gap: '5px', marginTop: '10px'}}>
+                                    <button 
+                                        className="view-details-btn"
+                                        onClick={() => viewCandidateDetails(candidate)}
+                                        style={{flex: 1}}
+                                    >
+                                        View Details
+                                    </button>
+                                    <button 
+                                        className="view-details-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowInterviewModal(true);
+                                        }}
+                                        style={{
+                                            flex: 1,
+                                            background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+                                            fontSize: '11px'
+                                        }}
+                                    >
+                                        📅 Interview
+                                    </button>
+                                </div>
                                 
                                 {/* Quick Project Assignment */}
                                 <div style={{marginTop: '10px'}}>
@@ -2948,6 +4115,12 @@
                             📊 Analytics
                         </button>
                         <button 
+                            className={`nav-tab ${activeTab === 'interviews' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('interviews')}
+                        >
+                            🎤 Interviews
+                        </button>
+                        <button 
                             className={`nav-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
                             onClick={() => setActiveTab('pipeline')}
                         >
@@ -2964,6 +4137,7 @@
                             <>
                                 {activeTab === 'candidates' && <CandidatesView />}
                                 {activeTab === 'analytics' && <AnalyticsDashboard />}
+                                {activeTab === 'interviews' && <InterviewsView />}
                                 {activeTab === 'pipeline' && <PipelineView />}
                             </>
                         )}
@@ -2972,6 +4146,9 @@
                     {showAddModal && <AddCandidateModal />}
                     {showDetailModal && <CandidateDetailModal />}
                     {showProjectModal && <CreateProjectModal />}
+                    {showInterviewModal && <ScheduleInterviewModal />}
+                    {showTemplateModal && <CreateTemplateModal />}
+                    {showFeedbackModal && <InterviewFeedbackModal />}
                 </div>
             );
 
