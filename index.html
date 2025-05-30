@@ -3,134 +3,368 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecruitPro CRM - Next Generation</title>
+    <title>RecruitPro CRM - Working Version</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
         body {
             margin: 0;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-        
-        .glass-morphism {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .dark-glass {
-            background: rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .gradient-bg {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
         
-        .card-hover {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
         
-        .card-hover:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        .login-box {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
         }
         
-        .animate-fade-in {
-            animation: fadeIn 0.5s ease-out;
+        .login-title {
+            text-align: center;
+            color: #333;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        .login-subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
         }
         
-        .tag-animate {
-            animation: tagPop 0.3s ease-out;
-        }
-        
-        @keyframes tagPop {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        
-        .timeline-item {
-            position: relative;
-            padding-left: 2rem;
-        }
-        
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: 0.5rem;
-            top: 0.5rem;
-            width: 0.5rem;
-            height: 0.5rem;
+        .user-avatar {
+            width: 80px;
+            height: 80px;
             background: #667eea;
             border-radius: 50%;
-            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
         }
         
-        .timeline-item::after {
-            content: '';
-            position: absolute;
-            left: 0.75rem;
-            top: 1rem;
-            width: 1px;
-            height: calc(100% - 1rem);
-            background: #e5e7eb;
+        .password-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            background: white !important;
+            color: #333 !important;
         }
         
-        .timeline-item:last-child::after {
-            display: none;
+        .password-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .login-button {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .login-button:hover {
+            background: #5a6fd8;
+        }
+        
+        .main-app {
+            min-height: 100vh;
+            background: #f5f7fa;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .dashboard {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .search-bar {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        
+        .add-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .candidates-grid {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .candidate-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .candidate-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .candidate-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .candidate-info {
+            flex: 1;
+        }
+        
+        .candidate-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .candidate-title {
+            color: #666;
+            margin-bottom: 3px;
+        }
+        
+        .candidate-company {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-new { background: #e3f2fd; color: #1976d2; }
+        .status-screening { background: #fff3e0; color: #f57c00; }
+        .status-interviewing { background: #f3e5f5; color: #7b1fa2; }
+        .status-offer { background: #e8f5e8; color: #388e3c; }
+        .status-hired { background: #e8f5e8; color: #2e7d32; }
+        .status-rejected { background: #ffebee; color: #d32f2f; }
+        
+        .score-section {
+            margin: 15px 0;
         }
         
         .score-bar {
-            background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%);
+            width: 100%;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        
+        .score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ffaa00, #00aa00);
+            transition: width 0.3s;
+        }
+        
+        .score-buttons {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        
+        .score-btn {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .score-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
         }
     </style>
 </head>
-<body class="bg-gray-50">
+<body>
     <div id="root"></div>
     
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect } = React;
         
-        // Simple icon components to avoid lucide issues
-        const SearchIcon = () => React.createElement('svg', { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
-            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "m21 21-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" })
-        );
-        
-        const PlusIcon = () => React.createElement('svg', { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
-            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 4v16m8-8H4" })
-        );
-        
-        const UsersIcon = () => React.createElement('svg', { className: "w-6 h-6", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
-            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a4 4 0 11-8 0 4 4 0 018 0z" })
-        );
-        
-        const EyeIcon = () => React.createElement('svg', { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
-            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" }),
-            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" })
-        );
-        
-        const XIcon = () => React.createElement('svg', { className: "w-6 h-6", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
-            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M6 18L18 6M6 6l12 12" })
-        );
-
-        // Enhanced Supabase configuration
+        // Supabase configuration
         const CONFIG = {
             supabaseUrl: 'https://zrnezxeoyuzynvrouart.supabase.co',
             supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpybmV6eGVveXV6eW52cm91YXJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1NDc1NDEsImV4cCI6MjA2NDEyMzU0MX0.lVA0PHErWqlRcFaXSnjN9glU7oNL0Ir2-XV-jgfffc4'
         };
 
-        // Enhanced Supabase client with better error handling
         const supabase = {
             async request(endpoint, options = {}) {
                 try {
@@ -146,20 +380,19 @@
                     });
 
                     if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`HTTP ${response.status}: ${errorText}`);
+                        throw new Error(`HTTP ${response.status}`);
                     }
 
                     const data = await response.json();
                     return { data, error: null };
                 } catch (error) {
-                    console.error('Supabase request failed:', error);
+                    console.error('Supabase error:', error);
                     return { data: null, error: error.message };
                 }
             },
 
-            async select(table, query = '') {
-                return this.request(`${table}?${query}&order=created_at.desc`);
+            async select(table) {
+                return this.request(`${table}?order=created_at.desc`);
             },
 
             async insert(table, data) {
@@ -174,720 +407,411 @@
                     method: 'PATCH',
                     body: JSON.stringify(data)
                 });
-            },
-
-            async delete(table, filter) {
-                return this.request(`${table}?${filter}`, {
-                    method: 'DELETE'
-                });
             }
         };
 
-        const NextGenCRM = () => {
-            console.log('NextGenCRM component initializing...');
+        const RecruitPro = () => {
+            console.log('RecruitPro starting...');
             
-            // State management
             const [currentUser, setCurrentUser] = useState(null);
             const [candidates, setCandidates] = useState([]);
-            const [comments, setComments] = useState([]);
-            const [pipelines, setPipelines] = useState([]);
-            const [tags, setTags] = useState([]);
-            
-            // UI State
-            const [activeView, setActiveView] = useState('dashboard');
-            const [selectedPipeline, setSelectedPipeline] = useState('all');
+            const [loginPassword, setLoginPassword] = useState('');
+            const [showAddModal, setShowAddModal] = useState(false);
             const [searchTerm, setSearchTerm] = useState('');
-            const [selectedTags, setSelectedTags] = useState([]);
-            const [statusFilter, setStatusFilter] = useState('all');
-            const [showFilters, setShowFilters] = useState(false);
-            
-            // Modal states
-            const [showAddCandidate, setShowAddCandidate] = useState(false);
-            const [selectedCandidate, setSelectedCandidate] = useState(null);
-            const [showAnalytics, setShowAnalytics] = useState(false);
-            
-            // Loading and connection states
             const [loading, setLoading] = useState(false);
             const [dbConnected, setDbConnected] = useState(false);
 
-            console.log('State initialized, currentUser:', currentUser);
-
-            const [users] = useState([
-                { id: 1, name: 'Chris van der Merwe', email: 'chris@company.com', role: 'admin', avatar: 'CM', password: 'NextGen' }
-            ]);
+            const user = { 
+                id: 1, 
+                name: 'Chris van der Merwe', 
+                email: 'chris@company.com', 
+                role: 'admin', 
+                avatar: 'CM', 
+                password: 'NextGen' 
+            };
 
             const statuses = [
-                { value: 'new', label: 'New', color: 'bg-blue-500', textColor: 'text-white' },
-                { value: 'screening', label: 'Screening', color: 'bg-yellow-500', textColor: 'text-white' },
-                { value: 'interviewing', label: 'Interviewing', color: 'bg-purple-500', textColor: 'text-white' },
-                { value: 'technical', label: 'Technical', color: 'bg-indigo-500', textColor: 'text-white' },
-                { value: 'offer', label: 'Offer', color: 'bg-green-500', textColor: 'text-white' },
-                { value: 'hired', label: 'Hired', color: 'bg-emerald-500', textColor: 'text-white' },
-                { value: 'rejected', label: 'Rejected', color: 'bg-red-500', textColor: 'text-white' },
-                { value: 'on-hold', label: 'On Hold', color: 'bg-gray-500', textColor: 'text-white' }
+                { value: 'new', label: 'New' },
+                { value: 'screening', label: 'Screening' },
+                { value: 'interviewing', label: 'Interviewing' },
+                { value: 'offer', label: 'Offer' },
+                { value: 'hired', label: 'Hired' },
+                { value: 'rejected', label: 'Rejected' }
             ];
 
-            // Initialize data
+            // Load data when user logs in
             useEffect(() => {
                 if (currentUser) {
-                    console.log('User logged in, initializing data...');
-                    initializeData();
+                    console.log('User logged in, loading data...');
+                    loadData();
                 }
             }, [currentUser]);
 
-            const initializeData = async () => {
-                console.log('Starting data initialization...');
+            const loadData = async () => {
                 setLoading(true);
                 
-                try {
-                    // Test connection
-                    console.log('Testing database connection...');
-                    const connectionTest = await supabase.select('candidates', 'limit=1');
-                    const isConnected = !connectionTest.error;
-                    setDbConnected(isConnected);
-                    console.log('Database connected:', isConnected);
-                    
-                    if (isConnected) {
-                        console.log('Loading data from database...');
-                        // Load real data
-                        await Promise.all([
-                            loadCandidates(),
-                            loadComments(),
-                            loadPipelines(),
-                            loadTags()
-                        ]);
-                    } else {
-                        console.log('Using demo data...');
-                        // Use demo data
-                        setDemoData();
-                    }
-                } catch (error) {
-                    console.error('Error during initialization:', error);
-                    setDemoData();
+                // Test database connection
+                const { data, error } = await supabase.select('candidates');
+                
+                if (!error) {
+                    setDbConnected(true);
+                    setCandidates(data || []);
+                    console.log('Loaded candidates from database:', data?.length || 0);
+                } else {
+                    setDbConnected(false);
+                    // Use demo data
+                    setCandidates([
+                        {
+                            id: 1,
+                            name: 'Sarah Chen',
+                            email: 'sarah.chen@email.com',
+                            job_title: 'Senior Developer',
+                            company: 'Tech Corp',
+                            status: 'interviewing',
+                            score: 8,
+                            created_at: '2025-05-30T10:00:00Z'
+                        },
+                        {
+                            id: 2,
+                            name: 'Marcus Johnson',
+                            email: 'marcus.j@email.com',
+                            job_title: 'Product Manager',
+                            company: 'StartupXYZ',
+                            status: 'offer',
+                            score: 9,
+                            created_at: '2025-05-29T09:15:00Z'
+                        }
+                    ]);
+                    console.log('Using demo data');
                 }
                 
                 setLoading(false);
-                console.log('Data initialization complete');
             };
 
-            const setDemoData = () => {
-                setCandidates([
-                    {
-                        id: 1,
-                        name: 'Sarah Chen',
-                        email: 'sarah.chen@email.com',
-                        phone: '+1 (555) 123-4567',
-                        job_title: 'Senior Full Stack Developer',
-                        company: 'Tech Innovations Inc',
-                        location: 'San Francisco, CA',
-                        status: 'interviewing',
-                        score: 8,
-                        tags: ['React', 'Node.js', 'Senior'],
-                        pipeline_id: 1,
-                        linkedin_url: 'https://linkedin.com/in/sarahchen',
-                        added_by: 'Chris van der Merwe',
-                        created_at: '2025-05-30T10:00:00Z',
-                        last_updated: '2025-05-30T14:30:00Z'
-                    },
-                    {
-                        id: 2,
-                        name: 'Marcus Johnson',
-                        email: 'marcus.j@email.com',
-                        phone: '+1 (555) 987-6543',
-                        job_title: 'Product Manager',
-                        company: 'StartupXYZ',
-                        location: 'Austin, TX',
-                        status: 'offer',
-                        score: 9,
-                        tags: ['Product', 'Leadership', 'B2B'],
-                        pipeline_id: 2,
-                        linkedin_url: '',
-                        added_by: 'Chris van der Merwe',
-                        created_at: '2025-05-29T09:15:00Z',
-                        last_updated: '2025-05-30T16:20:00Z'
-                    }
-                ]);
-
-                setComments([
-                    {
-                        id: 1,
-                        candidate_id: 1,
-                        comment: 'Excellent technical interview. Strong React and Node.js skills demonstrated.',
-                        author: 'Chris van der Merwe',
-                        created_at: '2025-05-30T14:30:00Z'
-                    },
-                    {
-                        id: 2,
-                        candidate_id: 1,
-                        comment: 'Initial phone screening completed. Very articulate and experienced.',
-                        author: 'Chris van der Merwe',
-                        created_at: '2025-05-30T10:15:00Z'
-                    },
-                    {
-                        id: 3,
-                        candidate_id: 2,
-                        comment: 'Impressive product management experience. Ready to extend offer.',
-                        author: 'Chris van der Merwe',
-                        created_at: '2025-05-30T16:20:00Z'
-                    }
-                ]);
-
-                setPipelines([
-                    { id: 1, name: 'Engineering Team', color: 'bg-blue-500', candidate_count: 5 },
-                    { id: 2, name: 'Product Team', color: 'bg-green-500', candidate_count: 3 },
-                    { id: 3, name: 'Sales Team', color: 'bg-purple-500', candidate_count: 2 }
-                ]);
-
-                setTags([
-                    { name: 'React', count: 3 },
-                    { name: 'Node.js', count: 2 },
-                    { name: 'Senior', count: 4 },
-                    { name: 'Leadership', count: 2 },
-                    { name: 'Product', count: 2 },
-                    { name: 'B2B', count: 1 }
-                ]);
-            };
-
-            const loadCandidates = async () => {
-                const { data, error } = await supabase.select('candidates');
-                if (!error && data) {
-                    setCandidates(data);
+            const handleLogin = () => {
+                console.log('Login attempt with password:', loginPassword);
+                if (loginPassword === user.password) {
+                    console.log('Login successful');
+                    setCurrentUser(user);
+                } else {
+                    alert('Incorrect password. Try: NextGen');
+                    setLoginPassword('');
                 }
             };
 
-            const loadComments = async () => {
-                const { data, error } = await supabase.select('comments');
-                if (!error && data) {
-                    setComments(data);
-                }
+            const handleLogout = () => {
+                setCurrentUser(null);
+                setLoginPassword('');
+                setCandidates([]);
             };
 
-            const loadPipelines = async () => {
-                const { data, error } = await supabase.select('pipelines');
-                if (!error && data) {
-                    setPipelines(data);
-                }
-            };
-
-            const loadTags = async () => {
-                // This would be computed from candidates in a real app
-                const uniqueTags = {};
-                candidates.forEach(candidate => {
-                    if (candidate.tags) {
-                        candidate.tags.forEach(tag => {
-                            uniqueTags[tag] = (uniqueTags[tag] || 0) + 1;
-                        });
-                    }
-                });
-                
-                const tagArray = Object.entries(uniqueTags).map(([name, count]) => ({ name, count }));
-                setTags(tagArray);
-            };
-
-            // Authentication
-            const [loginPassword, setLoginPassword] = useState('');
-
+            // Login screen
             if (!currentUser) {
-                return React.createElement('div', { 
-                    className: "min-h-screen gradient-bg flex items-center justify-center" 
-                },
-                    React.createElement('div', { className: "glass-morphism p-8 rounded-2xl shadow-2xl w-full max-w-md animate-fade-in" },
-                        React.createElement('div', { className: "text-center mb-8" },
-                            React.createElement('div', { className: "w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg" },
-                                React.createElement('span', { className: "text-2xl font-bold text-indigo-600" }, "RP")
-                            ),
-                            React.createElement('h1', { className: "text-3xl font-bold text-white mb-2" }, "RecruitPro"),
-                            React.createElement('p', { className: "text-white/80" }, "Next-Generation Recruitment Platform")
-                        ),
-                        
-                        React.createElement('div', { className: "space-y-6" },
-                            React.createElement('div', { className: "text-center" },
-                                React.createElement('div', { className: "w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-xl mx-auto mb-4" }, "CM"),
-                                React.createElement('h3', { className: "text-lg font-semibold text-white" }, "Chris van der Merwe"),
-                                React.createElement('p', { className: "text-white/70" }, "Administrator")
-                            ),
+                console.log('Rendering login screen');
+                return (
+                    <div className="login-container">
+                        <div className="login-box">
+                            <h1 className="login-title">RecruitPro</h1>
+                            <p className="login-subtitle">Next-Generation Recruitment CRM</p>
                             
-                            React.createElement('div', null,
-                                React.createElement('input', {
-                                    type: "password",
-                                    value: loginPassword,
-                                    onChange: (e) => setLoginPassword(e.target.value),
-                                    placeholder: "Enter your password",
-                                    className: "w-full p-4 rounded-xl bg-white/20 backdrop-blur border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-white/50 focus:border-white/50 focus:outline-none",
-                                    style: { color: 'white' },
-                                    onKeyPress: (e) => {
-                                        if (e.key === 'Enter') {
-                                            if (loginPassword === users[0].password) {
-                                                setCurrentUser(users[0]);
-                                            } else {
-                                                alert('Incorrect password');
-                                                setLoginPassword('');
-                                            }
-                                        }
-                                    }
-                                })
-                            ),
+                            <div className="user-avatar">CM</div>
+                            <h3 style={{textAlign: 'center', marginBottom: '20px', color: '#333'}}>
+                                Chris van der Merwe
+                            </h3>
                             
-                            React.createElement('button', {
-                                onClick: () => {
-                                    if (loginPassword === users[0].password) {
-                                        setCurrentUser(users[0]);
-                                    } else {
-                                        alert('Incorrect password');
-                                        setLoginPassword('');
-                                    }
-                                },
-                                className: "w-full bg-white text-indigo-600 py-4 px-6 rounded-xl hover:bg-white/90 font-semibold transition-all duration-200 transform hover:scale-105"
-                            }, "Sign In")
-                        )
-                    )
+                            <input
+                                type="password"
+                                className="password-input"
+                                placeholder="Enter password (NextGen)"
+                                value={loginPassword}
+                                onChange={(e) => setLoginPassword(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                                style={{
+                                    background: 'white !important',
+                                    color: '#333 !important'
+                                }}
+                            />
+                            
+                            <button 
+                                className="login-button"
+                                onClick={handleLogin}
+                            >
+                                Sign In
+                            </button>
+                        </div>
+                    </div>
                 );
             }
 
-            // Filter candidates
-            const filteredCandidates = useMemo(() => {
-                return candidates.filter(candidate => {
-                    const matchesSearch = candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                         candidate.job_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                         candidate.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                         candidate.email.toLowerCase().includes(searchTerm.toLowerCase());
-                    
-                    const matchesStatus = statusFilter === 'all' || candidate.status === statusFilter;
-                    const matchesPipeline = selectedPipeline === 'all' || candidate.pipeline_id === selectedPipeline;
-                    const matchesTags = selectedTags.length === 0 || 
-                                       selectedTags.every(tag => candidate.tags?.includes(tag));
-                    
-                    return matchesSearch && matchesStatus && matchesPipeline && matchesTags;
-                });
-            }, [candidates, searchTerm, statusFilter, selectedPipeline, selectedTags]);
-
-            // Analytics calculations
-            const analytics = useMemo(() => {
-                const total = candidates.length;
-                const byStatus = statuses.reduce((acc, status) => {
-                    acc[status.value] = candidates.filter(c => c.status === status.value).length;
-                    return acc;
-                }, {});
-                
-                const avgScore = candidates.length > 0 
-                    ? (candidates.reduce((sum, c) => sum + (c.score || 0), 0) / candidates.length).toFixed(1)
-                    : 0;
-                
-                const byLocation = candidates.reduce((acc, c) => {
-                    const location = c.location || 'Unknown';
-                    acc[location] = (acc[location] || 0) + 1;
-                    return acc;
-                }, {});
-                
-                const byCompany = candidates.reduce((acc, c) => {
-                    const company = c.company || 'Unknown';
-                    acc[company] = (acc[company] || 0) + 1;
-                    return acc;
-                }, {});
-
-                return { total, byStatus, avgScore, byLocation, byCompany };
-            }, [candidates]);
-
-            // Main Dashboard Component
-            const Dashboard = () => (
-                React.createElement('div', { className: "space-y-6" },
-                    // Stats Cards
-                    React.createElement('div', { className: "grid grid-cols-2 md:grid-cols-4 gap-6" },
-                        React.createElement('div', { className: "dark-glass rounded-2xl p-6 card-hover" },
-                            React.createElement('div', { className: "flex items-center justify-between" },
-                                React.createElement('div', null,
-                                    React.createElement('p', { className: "text-white/70 text-sm" }, "Total Candidates"),
-                                    React.createElement('p', { className: "text-3xl font-bold text-white" }, analytics.total)
-                                ),
-                                React.createElement('div', { className: "p-3 bg-blue-500/20 rounded-xl" },
-                                    React.createElement(UsersIcon)
-                                )
-                            )
-                        ),
-                        React.createElement('div', { className: "dark-glass rounded-2xl p-6 card-hover" },
-                            React.createElement('div', { className: "flex items-center justify-between" },
-                                React.createElement('div', null,
-                                    React.createElement('p', { className: "text-white/70 text-sm" }, "In Progress"),
-                                    React.createElement('p', { className: "text-3xl font-bold text-white" }, 
-                                        analytics.byStatus.interviewing + analytics.byStatus.screening + analytics.byStatus.technical)
-                                ),
-                                React.createElement('div', { className: "p-3 bg-purple-500/20 rounded-xl" },
-                                    React.createElement('span', { className: "text-purple-400 text-lg" }, "📈")
-                                )
-                            )
-                        ),
-                        React.createElement('div', { className: "dark-glass rounded-2xl p-6 card-hover" },
-                            React.createElement('div', { className: "flex items-center justify-between" },
-                                React.createElement('div', null,
-                                    React.createElement('p', { className: "text-white/70 text-sm" }, "Avg Score"),
-                                    React.createElement('p', { className: "text-3xl font-bold text-white" }, analytics.avgScore)
-                                ),
-                                React.createElement('div', { className: "p-3 bg-green-500/20 rounded-xl" },
-                                    React.createElement('span', { className: "text-green-400 text-lg" }, "⭐")
-                                )
-                            )
-                        ),
-                        React.createElement('div', { className: "dark-glass rounded-2xl p-6 card-hover" },
-                            React.createElement('div', { className: "flex items-center justify-between" },
-                                React.createElement('div', null,
-                                    React.createElement('p', { className: "text-white/70 text-sm" }, "Pipelines"),
-                                    React.createElement('p', { className: "text-3xl font-bold text-white" }, pipelines.length)
-                                ),
-                                React.createElement('div', { className: "p-3 bg-yellow-500/20 rounded-xl" },
-                                    React.createElement('span', { className: "text-yellow-400 text-lg" }, "📁")
-                                )
-                            )
-                        )
-                    ),
-
-                    // Search and Filters
-                    React.createElement('div', { className: "dark-glass rounded-2xl p-6" },
-                        React.createElement('div', { className: "flex flex-col md:flex-row gap-4" },
-                            React.createElement('div', { className: "flex-1 relative" },
-                                React.createElement(Search, { className: "absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" }),
-                                React.createElement('input', {
-                                    type: "text",
-                                    placeholder: "Search candidates...",
-                                    value: searchTerm,
-                                    onChange: (e) => setSearchTerm(e.target.value),
-                                    className: "w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30"
-                                })
-                            ),
-                            React.createElement('div', { className: "flex gap-3" },
-                                React.createElement('select', {
-                                    value: statusFilter,
-                                    onChange: (e) => setStatusFilter(e.target.value),
-                                    className: "px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-white/30"
-                                },
-                                    React.createElement('option', { value: "all" }, "All Statuses"),
-                                    statuses.map(status => 
-                                        React.createElement('option', { key: status.value, value: status.value }, status.label)
-                                    )
-                                ),
-                                React.createElement('select', {
-                                    value: selectedPipeline,
-                                    onChange: (e) => setSelectedPipeline(e.target.value === 'all' ? 'all' : parseInt(e.target.value)),
-                                    className: "px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-white/30"
-                                },
-                                    React.createElement('option', { value: "all" }, "All Pipelines"),
-                                    pipelines.map(pipeline => 
-                                        React.createElement('option', { key: pipeline.id, value: pipeline.id }, pipeline.name)
-                                    )
-                                ),
-                                React.createElement('button', {
-                                    onClick: () => setShowAddCandidate(true),
-                                    className: "bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors"
-                                },
-                                    React.createElement(PlusIcon),
-                                    "Add Candidate"
-                                )
-                            )
-                        )
-                    ),
-
-                    // Candidates Grid
-                    React.createElement('div', { className: "grid gap-6" },
-                        filteredCandidates.map(candidate => 
-                            React.createElement(CandidateCard, { key: candidate.id, candidate })
-                        )
-                    )
-                )
+            // Main application
+            console.log('Rendering main application');
+            
+            const filteredCandidates = candidates.filter(candidate =>
+                candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                candidate.job_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                candidate.company.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
-            // Enhanced Candidate Card Component
-            const CandidateCard = ({ candidate }) => {
-                const status = statuses.find(s => s.value === candidate.status);
-                const candidateComments = comments.filter(c => c.candidate_id === candidate.id);
-                
-                const updateStatus = async (newStatus) => {
-                    const updatedCandidate = {
-                        ...candidate,
-                        status: newStatus,
-                        last_updated: new Date().toISOString()
-                    };
-                    
-                    setCandidates(prev => prev.map(c => c.id === candidate.id ? updatedCandidate : c));
-                    
-                    // Save to database
-                    if (dbConnected) {
-                        await supabase.update('candidates', updatedCandidate, `id=eq.${candidate.id}`);
-                    }
-                };
-
-                const updateScore = async (newScore) => {
-                    const updatedCandidate = {
-                        ...candidate,
-                        score: newScore,
-                        last_updated: new Date().toISOString()
-                    };
-                    
-                    setCandidates(prev => prev.map(c => c.id === candidate.id ? updatedCandidate : c));
-                    
-                    if (dbConnected) {
-                        await supabase.update('candidates', updatedCandidate, `id=eq.${candidate.id}`);
-                    }
-                };
-
-                return React.createElement('div', { 
-                    className: "dark-glass rounded-2xl p-6 card-hover animate-fade-in",
-                    onClick: () => setSelectedCandidate(candidate)
-                },
-                    React.createElement('div', { className: "flex items-start justify-between mb-4" },
-                        React.createElement('div', { className: "flex items-center gap-4" },
-                            React.createElement('div', { className: "w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-xl flex items-center justify-center text-white font-semibold" },
-                                candidate.name.split(' ').map(n => n[0]).join('')
-                            ),
-                            React.createElement('div', null,
-                                React.createElement('h3', { className: "text-lg font-semibold text-white" }, candidate.name),
-                                React.createElement('p', { className: "text-white/70" }, candidate.job_title),
-                                React.createElement('p', { className: "text-white/50 text-sm" }, candidate.company)
-                            )
-                        ),
-                        React.createElement('div', { className: "flex items-center gap-2" },
-                            React.createElement('select', {
-                                value: candidate.status,
-                                onChange: (e) => {
-                                    e.stopPropagation();
-                                    updateStatus(e.target.value);
-                                },
-                                className: `px-3 py-1 rounded-lg text-sm font-medium ${status?.color} ${status?.textColor} border-0 cursor-pointer`,
-                                onClick: (e) => e.stopPropagation()
-                            },
-                                statuses.map(s => 
-                                    React.createElement('option', { key: s.value, value: s.value }, s.label)
-                                )
-                            ),
-                            React.createElement('button', {
-                                onClick: (e) => {
-                                    e.stopPropagation();
-                                    setSelectedCandidate(candidate);
-                                },
-                                className: "p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
-                            },
-                                React.createElement(EyeIcon)
-                            )
-                        )
-                    ),
-                    
-                    React.createElement('div', { className: "space-y-3" },
-                        // Score bar
-                        React.createElement('div', null,
-                            React.createElement('div', { className: "flex items-center justify-between mb-2" },
-                                React.createElement('span', { className: "text-white/70 text-sm" }, "Score"),
-                                React.createElement('span', { className: "text-white font-semibold" }, `${candidate.score || 0}/10`)
-                            ),
-                            React.createElement('div', { className: "w-full bg-white/10 rounded-full h-2" },
-                                React.createElement('div', { 
-                                    className: "score-bar h-2 rounded-full transition-all duration-300",
-                                    style: { width: `${(candidate.score || 0) * 10}%` }
-                                })
-                            ),
-                            React.createElement('div', { className: "flex gap-1 mt-2" },
-                                [1,2,3,4,5,6,7,8,9,10].map(score => 
-                                    React.createElement('button', {
-                                        key: score,
-                                        onClick: (e) => {
-                                            e.stopPropagation();
-                                            updateScore(score);
-                                        },
-                                        className: `w-6 h-6 rounded text-xs font-medium transition-colors ${
-                                            score <= (candidate.score || 0) 
-                                                ? 'bg-indigo-500 text-white' 
-                                                : 'bg-white/10 text-white/50 hover:bg-white/20'
-                                        }`
-                                    }, score)
-                                )
-                            )
-                        ),
-                        
-                        // Tags
-                        candidate.tags && React.createElement('div', { className: "flex flex-wrap gap-2" },
-                            candidate.tags.map(tag => 
-                                React.createElement('span', { 
-                                    key: tag,
-                                    className: "px-2 py-1 bg-white/10 text-white/80 rounded-lg text-xs tag-animate"
-                                }, tag)
-                            )
-                        ),
-                        
-                        // Latest comment
-                        candidateComments.length > 0 && React.createElement('div', { className: "bg-white/5 rounded-lg p-3" },
-                            React.createElement('div', { className: "flex items-center gap-2 mb-2" },
-                                React.createElement('span', { className: "text-white/70 text-lg" }, "💬"),
-                                React.createElement('span', { className: "text-white/70 text-sm" }, "Latest Comment")
-                            ),
-                            React.createElement('p', { className: "text-white/90 text-sm" }, candidateComments[0].comment),
-                            React.createElement('p', { className: "text-white/50 text-xs mt-1" }, 
-                                `${candidateComments[0].author} • ${new Date(candidateComments[0].created_at).toLocaleDateString()}`
-                            )
-                        )
-                    )
-                );
+            const stats = {
+                total: candidates.length,
+                interviewing: candidates.filter(c => c.status === 'interviewing').length,
+                offers: candidates.filter(c => c.status === 'offer').length,
+                hired: candidates.filter(c => c.status === 'hired').length
             };
 
-            // Add Candidate Modal (simplified for space)
+            const updateScore = async (candidateId, newScore) => {
+                const updatedCandidate = candidates.find(c => c.id === candidateId);
+                if (!updatedCandidate) return;
+
+                const updated = { ...updatedCandidate, score: newScore };
+                setCandidates(prev => prev.map(c => c.id === candidateId ? updated : c));
+
+                if (dbConnected) {
+                    await supabase.update('candidates', { score: newScore }, `id=eq.${candidateId}`);
+                }
+            };
+
+            const updateStatus = async (candidateId, newStatus) => {
+                const updatedCandidate = candidates.find(c => c.id === candidateId);
+                if (!updatedCandidate) return;
+
+                const updated = { ...updatedCandidate, status: newStatus };
+                setCandidates(prev => prev.map(c => c.id === candidateId ? updated : c));
+
+                if (dbConnected) {
+                    await supabase.update('candidates', { status: newStatus }, `id=eq.${candidateId}`);
+                }
+            };
+
             const AddCandidateModal = () => {
                 const [formData, setFormData] = useState({
-                    name: '', email: '', phone: '', job_title: '', company: '',
-                    location: '', pipeline_id: pipelines[0]?.id || 1, tags: [], score: 5
+                    name: '',
+                    email: '',
+                    job_title: '',
+                    company: '',
+                    phone: '',
+                    location: ''
                 });
 
                 const handleSubmit = async (e) => {
                     e.preventDefault();
+                    
                     const newCandidate = {
                         ...formData,
                         status: 'new',
+                        score: 5,
                         added_by: currentUser.name,
-                        created_at: new Date().toISOString(),
-                        last_updated: new Date().toISOString()
+                        created_at: new Date().toISOString()
                     };
 
-                    setCandidates(prev => [...prev, { ...newCandidate, id: Date.now() }]);
-                    setShowAddCandidate(false);
+                    if (dbConnected) {
+                        const { data, error } = await supabase.insert('candidates', newCandidate);
+                        if (!error && data?.[0]) {
+                            setCandidates(prev => [data[0], ...prev]);
+                        }
+                    } else {
+                        setCandidates(prev => [{ ...newCandidate, id: Date.now() }, ...prev]);
+                    }
+
+                    setShowAddModal(false);
                     setFormData({
-                        name: '', email: '', phone: '', job_title: '', company: '',
-                        location: '', pipeline_id: pipelines[0]?.id || 1, tags: [], score: 5
+                        name: '', email: '', job_title: '', company: '', phone: '', location: ''
                     });
                 };
 
-                return React.createElement('div', { className: "fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" },
-                    React.createElement('div', { className: "dark-glass rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" },
-                        React.createElement('div', { className: "flex items-center justify-between mb-6" },
-                            React.createElement('h2', { className: "text-2xl font-bold text-white" }, "Add New Candidate"),
-                            React.createElement('button', {
-                                onClick: () => setShowAddCandidate(false),
-                                className: "p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
-                            },
-                                React.createElement(XIcon)
-                            )
-                        ),
-                        
-                        React.createElement('form', { onSubmit: handleSubmit, className: "space-y-4" },
-                            React.createElement('div', { className: "grid grid-cols-2 gap-4" },
-                                React.createElement('div', null,
-                                    React.createElement('label', { className: "block text-white/70 text-sm font-medium mb-2" }, "Full Name *"),
-                                    React.createElement('input', {
-                                        type: "text",
-                                        required: true,
-                                        value: formData.name,
-                                        onChange: (e) => setFormData({...formData, name: e.target.value}),
-                                        className: "w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30",
-                                        placeholder: "John Smith"
-                                    })
-                                ),
-                                React.createElement('div', null,
-                                    React.createElement('label', { className: "block text-white/70 text-sm font-medium mb-2" }, "Email"),
-                                    React.createElement('input', {
-                                        type: "email",
-                                        value: formData.email,
-                                        onChange: (e) => setFormData({...formData, email: e.target.value}),
-                                        className: "w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30",
-                                        placeholder: "john@company.com"
-                                    })
-                                ),
-                                React.createElement('div', null,
-                                    React.createElement('label', { className: "block text-white/70 text-sm font-medium mb-2" }, "Job Title *"),
-                                    React.createElement('input', {
-                                        type: "text",
-                                        required: true,
-                                        value: formData.job_title,
-                                        onChange: (e) => setFormData({...formData, job_title: e.target.value}),
-                                        className: "w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30",
-                                        placeholder: "Senior Developer"
-                                    })
-                                ),
-                                React.createElement('div', null,
-                                    React.createElement('label', { className: "block text-white/70 text-sm font-medium mb-2" }, "Company *"),
-                                    React.createElement('input', {
-                                        type: "text",
-                                        required: true,
-                                        value: formData.company,
-                                        onChange: (e) => setFormData({...formData, company: e.target.value}),
-                                        className: "w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30",
-                                        placeholder: "Tech Corp Inc"
-                                    })
-                                )
-                            ),
+                return (
+                    <div className="modal">
+                        <div className="modal-content">
+                            <h2 style={{marginBottom: '20px'}}>Add New Candidate</h2>
                             
-                            React.createElement('div', { className: "flex gap-6 pt-4" },
-                                React.createElement('button', {
-                                    type: "submit",
-                                    className: "flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-xl font-semibold transition-colors"
-                                }, "Add Candidate"),
-                                React.createElement('button', {
-                                    type: "button",
-                                    onClick: () => setShowAddCandidate(false),
-                                    className: "flex-1 bg-white/10 hover:bg-white/20 text-white py-3 px-6 rounded-xl font-semibold transition-colors"
-                                }, "Cancel")
-                            )
-                        )
-                    )
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-group">
+                                    <label className="form-label">Full Name *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        required
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Email</label>
+                                    <input
+                                        type="email"
+                                        className="form-input"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Job Title *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        required
+                                        value={formData.job_title}
+                                        onChange={(e) => setFormData({...formData, job_title: e.target.value})}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Company *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        required
+                                        value={formData.company}
+                                        onChange={(e) => setFormData({...formData, company: e.target.value})}
+                                    />
+                                </div>
+                                
+                                <div className="form-buttons">
+                                    <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)}>
+                                        Cancel
+                                    </button>
+                                    <button type="submit" className="btn-primary">
+                                        Add Candidate
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 );
             };
 
-            // If user is logged in, show main app
-            if (currentUser && !loading) {
-                console.log('Rendering main application...');
-                return React.createElement('div', { className: "min-h-screen gradient-bg" },
-                    // Header
-                    React.createElement('header', { className: "dark-glass border-b border-white/10" },
-                        React.createElement('div', { className: "max-w-7xl mx-auto px-6 py-4" },
-                            React.createElement('div', { className: "flex items-center justify-between" },
-                                React.createElement('div', { className: "flex items-center gap-4" },
-                                    React.createElement('div', { className: "w-10 h-10 bg-white rounded-xl flex items-center justify-center" },
-                                        React.createElement('span', { className: "text-indigo-600 font-bold" }, "RP")
-                                    ),
-                                    React.createElement('div', null,
-                                        React.createElement('h1', { className: "text-xl font-bold text-white" }, "RecruitPro"),
-                                        React.createElement('p', { className: "text-white/60 text-sm" }, "Next-Generation CRM")
-                                    ),
-                                    React.createElement('span', { 
-                                        className: `px-3 py-1 rounded-full text-xs font-medium ${
-                                            dbConnected ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
-                                        }`
-                                    }, dbConnected ? "Database Connected" : "Demo Mode")
-                                ),
-                                React.createElement('div', { className: "flex items-center gap-4" },
-                                    React.createElement('div', { className: "flex items-center gap-3" },
-                                        React.createElement('div', { className: "w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center" },
-                                            React.createElement('span', { className: "text-white text-sm font-medium" }, currentUser.avatar)
-                                        ),
-                                        React.createElement('span', { className: "text-white font-medium" }, currentUser.name),
-                                        React.createElement('button', {
-                                            onClick: () => {
-                                                setCurrentUser(null);
-                                                setLoginPassword('');
-                                            },
-                                            className: "ml-4 text-white/70 hover:text-white text-sm"
-                                        }, "Sign Out")
-                                    )
-                                )
-                            )
-                        )
-                    ),
+            return (
+                <div className="main-app">
+                    <header className="header">
+                        <h1 className="header-title">
+                            RecruitPro CRM
+                            {dbConnected ? 
+                                <span style={{fontSize: '12px', color: 'green', marginLeft: '10px'}}>● Database Connected</span> :
+                                <span style={{fontSize: '12px', color: 'orange', marginLeft: '10px'}}>● Demo Mode</span>
+                            }
+                        </h1>
+                        
+                        <div className="user-info">
+                            <span>{currentUser.name}</span>
+                            <button className="logout-btn" onClick={handleLogout}>
+                                Sign Out
+                            </button>
+                        </div>
+                    </header>
 
-                    // Main Content
-                    React.createElement('main', { className: "max-w-7xl mx-auto px-6 py-8" },
-                        React.createElement(Dashboard)
-                    ),
+                    <div className="dashboard">
+                        {loading ? (
+                            <div style={{textAlign: 'center', padding: '50px'}}>
+                                <p>Loading candidates...</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="stats-grid">
+                                    <div className="stat-card">
+                                        <div className="stat-number">{stats.total}</div>
+                                        <div className="stat-label">Total Candidates</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-number">{stats.interviewing}</div>
+                                        <div className="stat-label">Interviewing</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-number">{stats.offers}</div>
+                                        <div className="stat-label">Offers Extended</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-number">{stats.hired}</div>
+                                        <div className="stat-label">Hired</div>
+                                    </div>
+                                </div>
 
-                    // Modals
-                    showAddCandidate && React.createElement(AddCandidateModal)
-                );
-            }
+                                <input
+                                    type="text"
+                                    className="search-bar"
+                                    placeholder="Search candidates by name, title, or company..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
 
-            // Loading state
-            if (currentUser && loading) {
-                return React.createElement('div', { className: "min-h-screen gradient-bg flex items-center justify-center" },
-                    React.createElement('div', { className: "text-white text-center" },
-                        React.createElement('div', { className: "animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" }),
-                        React.createElement('p', null, "Loading your recruitment data...")
-                    )
-                );
-            }
+                                <button className="add-button" onClick={() => setShowAddModal(true)}>
+                                    ➕ Add New Candidate
+                                </button>
+
+                                <div className="candidates-grid">
+                                    {filteredCandidates.map(candidate => (
+                                        <div key={candidate.id} className="candidate-card">
+                                            <div className="candidate-header">
+                                                <div className="candidate-info">
+                                                    <div className="candidate-name">{candidate.name}</div>
+                                                    <div className="candidate-title">{candidate.job_title}</div>
+                                                    <div className="candidate-company">{candidate.company}</div>
+                                                </div>
+                                                
+                                                <select
+                                                    value={candidate.status}
+                                                    onChange={(e) => updateStatus(candidate.id, e.target.value)}
+                                                    className={`status-badge status-${candidate.status}`}
+                                                    style={{border: 'none', cursor: 'pointer'}}
+                                                >
+                                                    {statuses.map(status => (
+                                                        <option key={status.value} value={status.value}>
+                                                            {status.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div className="score-section">
+                                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                                                    <span style={{fontSize: '14px', color: '#666'}}>Score</span>
+                                                    <span style={{fontSize: '16px', fontWeight: 'bold', color: '#667eea'}}>
+                                                        {candidate.score || 0}/10
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="score-bar">
+                                                    <div 
+                                                        className="score-fill"
+                                                        style={{width: `${(candidate.score || 0) * 10}%`}}
+                                                    ></div>
+                                                </div>
+                                                
+                                                <div className="score-buttons">
+                                                    {[1,2,3,4,5,6,7,8,9,10].map(score => (
+                                                        <button
+                                                            key={score}
+                                                            className={`score-btn ${score <= (candidate.score || 0) ? 'active' : ''}`}
+                                                            onClick={() => updateScore(candidate.id, score)}
+                                                        >
+                                                            {score}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {filteredCandidates.length === 0 && (
+                                    <div style={{textAlign: 'center', padding: '50px', color: '#666'}}>
+                                        {searchTerm ? 'No candidates match your search.' : 'No candidates yet. Add your first candidate!'}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    {showAddModal && <AddCandidateModal />}
+                </div>
+            );
         };
 
-        ReactDOM.render(React.createElement(NextGenCRM), document.getElementById('root'));
+        // Mount the app
+        console.log('Mounting React app...');
+        ReactDOM.render(React.createElement(RecruitPro), document.getElementById('root'));
+        console.log('React app mounted!');
     </script>
 </body>
 </html>
