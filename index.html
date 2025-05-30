@@ -3,31 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecruitPro CRM - Chris van der Merwe</title>
+    <title>RecruitPro CRM - Next Generation</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
         body {
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .dark-glass {
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tag-animate {
+            animation: tagPop 0.3s ease-out;
+        }
+        
+        @keyframes tagPop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-left: 2rem;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem;
+            top: 0.5rem;
+            width: 0.5rem;
+            height: 0.5rem;
+            background: #667eea;
+            border-radius: 50%;
+            z-index: 1;
+        }
+        
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            left: 0.75rem;
+            top: 1rem;
+            width: 1px;
+            height: calc(100% - 1rem);
+            background: #e5e7eb;
+        }
+        
+        .timeline-item:last-child::after {
+            display: none;
+        }
+        
+        .score-bar {
+            background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%);
         }
     </style>
 </head>
-<body>
+<body class="bg-gray-50">
     <div id="root"></div>
     
     <script type="text/babel">
-        const { useState, useEffect } = React;
-        
-        // Supabase configuration
+        const { useState, useEffect, useMemo } = React;
+        const { Search, Plus, Filter, Users, TrendingUp, Target, Tag, Folder, 
+                Star, Eye, Edit, MessageSquare, Calendar, Award, BarChart3,
+                ChevronDown, X, Settings, LogOut } = lucide;
+
+        // Enhanced Supabase configuration
         const CONFIG = {
             supabaseUrl: 'https://zrnezxeoyuzynvrouart.supabase.co',
             supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpybmV6eGVveXV6eW52cm91YXJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1NDc1NDEsImV4cCI6MjA2NDEyMzU0MX0.lVA0PHErWqlRcFaXSnjN9glU7oNL0Ir2-XV-jgfffc4'
         };
 
-        // Simple Supabase client
+        // Enhanced Supabase client with better error handling
         const supabase = {
             async request(endpoint, options = {}) {
                 try {
@@ -43,25 +127,26 @@
                     });
 
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        const errorText = await response.text();
+                        throw new Error(`HTTP ${response.status}: ${errorText}`);
                     }
 
                     const data = await response.json();
                     return { data, error: null };
                 } catch (error) {
                     console.error('Supabase request failed:', error);
-                    return { data: null, error };
+                    return { data: null, error: error.message };
                 }
             },
 
             async select(table, query = '') {
-                return this.request(`${table}?${query}`);
+                return this.request(`${table}?${query}&order=created_at.desc`);
             },
 
             async insert(table, data) {
                 return this.request(table, {
                     method: 'POST',
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(Array.isArray(data) ? data : [data])
                 });
             },
 
@@ -70,243 +155,630 @@
                     method: 'PATCH',
                     body: JSON.stringify(data)
                 });
+            },
+
+            async delete(table, filter) {
+                return this.request(`${table}?${filter}`, {
+                    method: 'DELETE'
+                });
             }
         };
 
-        const RecruitmentCRM = () => {
+        const NextGenCRM = () => {
+            // State management
             const [currentUser, setCurrentUser] = useState(null);
             const [candidates, setCandidates] = useState([]);
+            const [comments, setComments] = useState([]);
+            const [pipelines, setPipelines] = useState([]);
+            const [tags, setTags] = useState([]);
+            
+            // UI State
+            const [activeView, setActiveView] = useState('dashboard');
+            const [selectedPipeline, setSelectedPipeline] = useState('all');
             const [searchTerm, setSearchTerm] = useState('');
+            const [selectedTags, setSelectedTags] = useState([]);
             const [statusFilter, setStatusFilter] = useState('all');
-            const [showAddForm, setShowAddForm] = useState(false);
-            const [viewingCandidate, setViewingCandidate] = useState(null);
-            const [isEditing, setIsEditing] = useState(false);
-            const [loginPassword, setLoginPassword] = useState('');
-            const [dbConnected, setDbConnected] = useState(true);
-
-            // Test database connection
-            const testConnection = async () => {
-                try {
-                    const { data, error } = await supabase.select('candidates', 'limit=1');
-                    setDbConnected(!error);
-                    return !error;
-                } catch (err) {
-                    setDbConnected(false);
-                    return false;
-                }
-            };
+            const [showFilters, setShowFilters] = useState(false);
+            
+            // Modal states
+            const [showAddCandidate, setShowAddCandidate] = useState(false);
+            const [selectedCandidate, setSelectedCandidate] = useState(null);
+            const [showAnalytics, setShowAnalytics] = useState(false);
+            
+            // Loading and connection states
+            const [loading, setLoading] = useState(true);
+            const [dbConnected, setDbConnected] = useState(false);
 
             const [users] = useState([
                 { id: 1, name: 'Chris van der Merwe', email: 'chris@company.com', role: 'admin', avatar: 'CM', password: 'NextGen' }
             ]);
 
             const statuses = [
-                { value: 'new', label: 'New', color: 'bg-blue-100 text-blue-800' },
-                { value: 'screening', label: 'Screening', color: 'bg-yellow-100 text-yellow-800' },
-                { value: 'interviewing', label: 'Interviewing', color: 'bg-purple-100 text-purple-800' },
-                { value: 'offer', label: 'Offer Extended', color: 'bg-green-100 text-green-800' },
-                { value: 'hired', label: 'Hired', color: 'bg-green-100 text-green-800' },
-                { value: 'rejected', label: 'Rejected', color: 'bg-red-100 text-red-800' },
-                { value: 'do-not-contact', label: 'Do Not Contact', color: 'bg-gray-100 text-gray-800' }
+                { value: 'new', label: 'New', color: 'bg-blue-500', textColor: 'text-white' },
+                { value: 'screening', label: 'Screening', color: 'bg-yellow-500', textColor: 'text-white' },
+                { value: 'interviewing', label: 'Interviewing', color: 'bg-purple-500', textColor: 'text-white' },
+                { value: 'technical', label: 'Technical', color: 'bg-indigo-500', textColor: 'text-white' },
+                { value: 'offer', label: 'Offer', color: 'bg-green-500', textColor: 'text-white' },
+                { value: 'hired', label: 'Hired', color: 'bg-emerald-500', textColor: 'text-white' },
+                { value: 'rejected', label: 'Rejected', color: 'bg-red-500', textColor: 'text-white' },
+                { value: 'on-hold', label: 'On Hold', color: 'bg-gray-500', textColor: 'text-white' }
             ];
 
-            // Load candidates from Supabase
-            const loadCandidates = async () => {
-                try {
-                    console.log('Loading candidates from database...');
-                    const { data, error } = await supabase.select('candidates');
-                    if (error) {
-                        console.error('Failed to load candidates from database:', error);
-                        console.log('Using demo data instead');
-                        setCandidates([
-                            {
-                                id: 1,
-                                name: 'Alice Rodriguez (Demo)',
-                                email: 'alice.rodriguez@email.com',
-                                phone: '+1 (555) 123-4567',
-                                position: 'Senior React Developer',
-                                job_title: 'Lead Frontend Developer',
-                                company: 'Tech Innovations Inc',
-                                status: 'interviewing',
-                                confidential: false,
-                                location: 'San Francisco, CA',
-                                notes: 'Excellent technical skills, very responsive during initial screening.',
-                                linkedin_url: 'https://linkedin.com/in/alicerodriguez',
-                                added_by: 'Chris van der Merwe',
-                                added_date: '2025-05-25',
-                                last_updated: '2025-05-28',
-                                last_viewed: '2025-05-29T10:30:00Z',
-                                last_viewed_by: 'Chris van der Merwe'
-                            }
-                        ]);
-                    } else {
-                        console.log(`Loaded ${data?.length || 0} candidates from database`);
-                        setCandidates(data || []);
-                    }
-                } catch (err) {
-                    console.error('Connection error:', err);
-                    console.log('Using demo data due to connection issue');
-                }
-            };
-
-            // Save candidate to Supabase
-            const saveCandidate = async (candidateData) => {
-                try {
-                    if (candidateData.id && candidates.find(c => c.id === candidateData.id)) {
-                        // Update existing
-                        const { data, error } = await supabase.update('candidates', candidateData, `id=eq.${candidateData.id}`);
-                        if (!error) {
-                            setCandidates(prev => prev.map(c => c.id === candidateData.id ? candidateData : c));
-                            console.log('Updated candidate successfully');
-                            return true;
-                        } else {
-                            console.error('Update failed:', error);
-                            // Still update local state even if database fails
-                            setCandidates(prev => prev.map(c => c.id === candidateData.id ? candidateData : c));
-                            return false;
-                        }
-                    } else {
-                        // Create new - try database first
-                        const dbCandidate = { ...candidateData };
-                        delete dbCandidate.id; // Let database generate ID
-                        
-                        const { data, error } = await supabase.insert('candidates', dbCandidate);
-                        if (!error && data && data[0]) {
-                            // Database save successful
-                            setCandidates(prev => [...prev, data[0]]);
-                            console.log('Added candidate to database successfully');
-                            return true;
-                        } else {
-                            // Database save failed - use local storage
-                            console.log('Database insert failed, using local storage:', error);
-                            const localCandidate = { ...candidateData, id: Date.now() };
-                            setCandidates(prev => [...prev, localCandidate]);
-                            alert('Record saved locally. Database connection may be unavailable.');
-                            return false;
-                        }
-                    }
-                } catch (err) {
-                    console.error('Save error:', err);
-                    // Always save locally as fallback
-                    if (candidateData.id && candidates.find(c => c.id === candidateData.id)) {
-                        setCandidates(prev => prev.map(c => c.id === candidateData.id ? candidateData : c));
-                    } else {
-                        setCandidates(prev => [...prev, { ...candidateData, id: Date.now() }]);
-                    }
-                    alert('Saved locally. Please check your internet connection.');
-                    return false;
-                }
-            };
-
-            // Track when candidate is viewed
-            const trackCandidateView = async (candidate) => {
-                const viewTimestamp = new Date().toISOString();
-                const updatedCandidate = {
-                    ...candidate,
-                    last_viewed: viewTimestamp,
-                    last_viewed_by: currentUser.name
-                };
-                await saveCandidate(updatedCandidate);
-                setViewingCandidate(updatedCandidate);
-            };
-
+            // Initialize data
             useEffect(() => {
-                testConnection();
-                loadCandidates();
+                initializeData();
             }, []);
 
-            // Add Candidate Form Component
-            const AddCandidateForm = () => {
+            const initializeData = async () => {
+                setLoading(true);
+                
+                // Test connection
+                const connectionTest = await supabase.select('candidates', 'limit=1');
+                setDbConnected(!connectionTest.error);
+                
+                if (!connectionTest.error) {
+                    // Load real data
+                    await Promise.all([
+                        loadCandidates(),
+                        loadComments(),
+                        loadPipelines(),
+                        loadTags()
+                    ]);
+                } else {
+                    // Use demo data
+                    setDemoData();
+                }
+                
+                setLoading(false);
+            };
+
+            const setDemoData = () => {
+                setCandidates([
+                    {
+                        id: 1,
+                        name: 'Sarah Chen',
+                        email: 'sarah.chen@email.com',
+                        phone: '+1 (555) 123-4567',
+                        job_title: 'Senior Full Stack Developer',
+                        company: 'Tech Innovations Inc',
+                        location: 'San Francisco, CA',
+                        status: 'interviewing',
+                        score: 8,
+                        tags: ['React', 'Node.js', 'Senior'],
+                        pipeline_id: 1,
+                        linkedin_url: 'https://linkedin.com/in/sarahchen',
+                        added_by: 'Chris van der Merwe',
+                        created_at: '2025-05-30T10:00:00Z',
+                        last_updated: '2025-05-30T14:30:00Z'
+                    },
+                    {
+                        id: 2,
+                        name: 'Marcus Johnson',
+                        email: 'marcus.j@email.com',
+                        phone: '+1 (555) 987-6543',
+                        job_title: 'Product Manager',
+                        company: 'StartupXYZ',
+                        location: 'Austin, TX',
+                        status: 'offer',
+                        score: 9,
+                        tags: ['Product', 'Leadership', 'B2B'],
+                        pipeline_id: 2,
+                        linkedin_url: '',
+                        added_by: 'Chris van der Merwe',
+                        created_at: '2025-05-29T09:15:00Z',
+                        last_updated: '2025-05-30T16:20:00Z'
+                    }
+                ]);
+
+                setComments([
+                    {
+                        id: 1,
+                        candidate_id: 1,
+                        comment: 'Excellent technical interview. Strong React and Node.js skills demonstrated.',
+                        author: 'Chris van der Merwe',
+                        created_at: '2025-05-30T14:30:00Z'
+                    },
+                    {
+                        id: 2,
+                        candidate_id: 1,
+                        comment: 'Initial phone screening completed. Very articulate and experienced.',
+                        author: 'Chris van der Merwe',
+                        created_at: '2025-05-30T10:15:00Z'
+                    },
+                    {
+                        id: 3,
+                        candidate_id: 2,
+                        comment: 'Impressive product management experience. Ready to extend offer.',
+                        author: 'Chris van der Merwe',
+                        created_at: '2025-05-30T16:20:00Z'
+                    }
+                ]);
+
+                setPipelines([
+                    { id: 1, name: 'Engineering Team', color: 'bg-blue-500', candidate_count: 5 },
+                    { id: 2, name: 'Product Team', color: 'bg-green-500', candidate_count: 3 },
+                    { id: 3, name: 'Sales Team', color: 'bg-purple-500', candidate_count: 2 }
+                ]);
+
+                setTags([
+                    { name: 'React', count: 3 },
+                    { name: 'Node.js', count: 2 },
+                    { name: 'Senior', count: 4 },
+                    { name: 'Leadership', count: 2 },
+                    { name: 'Product', count: 2 },
+                    { name: 'B2B', count: 1 }
+                ]);
+            };
+
+            const loadCandidates = async () => {
+                const { data, error } = await supabase.select('candidates');
+                if (!error && data) {
+                    setCandidates(data);
+                }
+            };
+
+            const loadComments = async () => {
+                const { data, error } = await supabase.select('comments');
+                if (!error && data) {
+                    setComments(data);
+                }
+            };
+
+            const loadPipelines = async () => {
+                const { data, error } = await supabase.select('pipelines');
+                if (!error && data) {
+                    setPipelines(data);
+                }
+            };
+
+            const loadTags = async () => {
+                // This would be computed from candidates in a real app
+                const uniqueTags = {};
+                candidates.forEach(candidate => {
+                    if (candidate.tags) {
+                        candidate.tags.forEach(tag => {
+                            uniqueTags[tag] = (uniqueTags[tag] || 0) + 1;
+                        });
+                    }
+                });
+                
+                const tagArray = Object.entries(uniqueTags).map(([name, count]) => ({ name, count }));
+                setTags(tagArray);
+            };
+
+            // Authentication
+            const [loginPassword, setLoginPassword] = useState('');
+
+            if (!currentUser) {
+                return React.createElement('div', { 
+                    className: "min-h-screen gradient-bg flex items-center justify-center" 
+                },
+                    React.createElement('div', { className: "glass-morphism p-8 rounded-2xl shadow-2xl w-full max-w-md animate-fade-in" },
+                        React.createElement('div', { className: "text-center mb-8" },
+                            React.createElement('div', { className: "w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg" },
+                                React.createElement('span', { className: "text-2xl font-bold text-indigo-600" }, "RP")
+                            ),
+                            React.createElement('h1', { className: "text-3xl font-bold text-white mb-2" }, "RecruitPro"),
+                            React.createElement('p', { className: "text-white/80" }, "Next-Generation Recruitment Platform")
+                        ),
+                        
+                        React.createElement('div', { className: "space-y-6" },
+                            React.createElement('div', { className: "text-center" },
+                                React.createElement('div', { className: "w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-xl mx-auto mb-4" }, "CM"),
+                                React.createElement('h3', { className: "text-lg font-semibold text-white" }, "Chris van der Merwe"),
+                                React.createElement('p', { className: "text-white/70" }, "Administrator")
+                            ),
+                            
+                            React.createElement('div', null,
+                                React.createElement('input', {
+                                    type: "password",
+                                    value: loginPassword,
+                                    onChange: (e) => setLoginPassword(e.target.value),
+                                    placeholder: "Enter your password",
+                                    className: "w-full p-4 rounded-xl bg-white/10 backdrop-blur border border-white/20 text-white placeholder-white/60 focus:ring-2 focus:ring-white/30 focus:border-transparent",
+                                    onKeyPress: (e) => {
+                                        if (e.key === 'Enter') {
+                                            if (loginPassword === users[0].password) {
+                                                setCurrentUser(users[0]);
+                                            } else {
+                                                alert('Incorrect password');
+                                                setLoginPassword('');
+                                            }
+                                        }
+                                    }
+                                })
+                            ),
+                            
+                            React.createElement('button', {
+                                onClick: () => {
+                                    if (loginPassword === users[0].password) {
+                                        setCurrentUser(users[0]);
+                                    } else {
+                                        alert('Incorrect password');
+                                        setLoginPassword('');
+                                    }
+                                },
+                                className: "w-full bg-white text-indigo-600 py-4 px-6 rounded-xl hover:bg-white/90 font-semibold transition-all duration-200 transform hover:scale-105"
+                            }, "Sign In")
+                        )
+                    )
+                );
+            }
+
+            // Filter candidates
+            const filteredCandidates = useMemo(() => {
+                return candidates.filter(candidate => {
+                    const matchesSearch = candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                         candidate.job_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                         candidate.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                         candidate.email.toLowerCase().includes(searchTerm.toLowerCase());
+                    
+                    const matchesStatus = statusFilter === 'all' || candidate.status === statusFilter;
+                    const matchesPipeline = selectedPipeline === 'all' || candidate.pipeline_id === selectedPipeline;
+                    const matchesTags = selectedTags.length === 0 || 
+                                       selectedTags.every(tag => candidate.tags?.includes(tag));
+                    
+                    return matchesSearch && matchesStatus && matchesPipeline && matchesTags;
+                });
+            }, [candidates, searchTerm, statusFilter, selectedPipeline, selectedTags]);
+
+            // Analytics calculations
+            const analytics = useMemo(() => {
+                const total = candidates.length;
+                const byStatus = statuses.reduce((acc, status) => {
+                    acc[status.value] = candidates.filter(c => c.status === status.value).length;
+                    return acc;
+                }, {});
+                
+                const avgScore = candidates.length > 0 
+                    ? (candidates.reduce((sum, c) => sum + (c.score || 0), 0) / candidates.length).toFixed(1)
+                    : 0;
+                
+                const byLocation = candidates.reduce((acc, c) => {
+                    const location = c.location || 'Unknown';
+                    acc[location] = (acc[location] || 0) + 1;
+                    return acc;
+                }, {});
+                
+                const byCompany = candidates.reduce((acc, c) => {
+                    const company = c.company || 'Unknown';
+                    acc[company] = (acc[company] || 0) + 1;
+                    return acc;
+                }, {});
+
+                return { total, byStatus, avgScore, byLocation, byCompany };
+            }, [candidates]);
+
+            // Main Dashboard Component
+            const Dashboard = () => (
+                React.createElement('div', { className: "space-y-6" },
+                    // Stats Cards
+                    React.createElement('div', { className: "grid grid-cols-2 md:grid-cols-4 gap-6" },
+                        React.createElement('div', { className: "dark-glass rounded-2xl p-6 card-hover" },
+                            React.createElement('div', { className: "flex items-center justify-between" },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-white/70 text-sm" }, "Total Candidates"),
+                                    React.createElement('p', { className: "text-3xl font-bold text-white" }, analytics.total)
+                                ),
+                                React.createElement('div', { className: "p-3 bg-blue-500/20 rounded-xl" },
+                                    React.createElement(Users, { className: "w-6 h-6 text-blue-400" })
+                                )
+                            )
+                        ),
+                        React.createElement('div', { className: "dark-glass rounded-2xl p-6 card-hover" },
+                            React.createElement('div', { className: "flex items-center justify-between" },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-white/70 text-sm" }, "In Progress"),
+                                    React.createElement('p', { className: "text-3xl font-bold text-white" }, 
+                                        analytics.byStatus.interviewing + analytics.byStatus.screening + analytics.byStatus.technical)
+                                ),
+                                React.createElement('div', { className: "p-3 bg-purple-500/20 rounded-xl" },
+                                    React.createElement(TrendingUp, { className: "w-6 h-6 text-purple-400" })
+                                )
+                            )
+                        ),
+                        React.createElement('div', { className: "dark-glass rounded-2xl p-6 card-hover" },
+                            React.createElement('div', { className: "flex items-center justify-between" },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-white/70 text-sm" }, "Avg Score"),
+                                    React.createElement('p', { className: "text-3xl font-bold text-white" }, analytics.avgScore)
+                                ),
+                                React.createElement('div', { className: "p-3 bg-green-500/20 rounded-xl" },
+                                    React.createElement(Award, { className: "w-6 h-6 text-green-400" })
+                                )
+                            )
+                        ),
+                        React.createElement('div', { className: "dark-glass rounded-2xl p-6 card-hover" },
+                            React.createElement('div', { className: "flex items-center justify-between" },
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: "text-white/70 text-sm" }, "Pipelines"),
+                                    React.createElement('p', { className: "text-3xl font-bold text-white" }, pipelines.length)
+                                ),
+                                React.createElement('div', { className: "p-3 bg-yellow-500/20 rounded-xl" },
+                                    React.createElement(Target, { className: "w-6 h-6 text-yellow-400" })
+                                )
+                            )
+                        )
+                    ),
+
+                    // Search and Filters
+                    React.createElement('div', { className: "dark-glass rounded-2xl p-6" },
+                        React.createElement('div', { className: "flex flex-col md:flex-row gap-4" },
+                            React.createElement('div', { className: "flex-1 relative" },
+                                React.createElement(Search, { className: "absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" }),
+                                React.createElement('input', {
+                                    type: "text",
+                                    placeholder: "Search candidates...",
+                                    value: searchTerm,
+                                    onChange: (e) => setSearchTerm(e.target.value),
+                                    className: "w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30"
+                                })
+                            ),
+                            React.createElement('div', { className: "flex gap-3" },
+                                React.createElement('select', {
+                                    value: statusFilter,
+                                    onChange: (e) => setStatusFilter(e.target.value),
+                                    className: "px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-white/30"
+                                },
+                                    React.createElement('option', { value: "all" }, "All Statuses"),
+                                    statuses.map(status => 
+                                        React.createElement('option', { key: status.value, value: status.value }, status.label)
+                                    )
+                                ),
+                                React.createElement('select', {
+                                    value: selectedPipeline,
+                                    onChange: (e) => setSelectedPipeline(e.target.value === 'all' ? 'all' : parseInt(e.target.value)),
+                                    className: "px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-white/30"
+                                },
+                                    React.createElement('option', { value: "all" }, "All Pipelines"),
+                                    pipelines.map(pipeline => 
+                                        React.createElement('option', { key: pipeline.id, value: pipeline.id }, pipeline.name)
+                                    )
+                                ),
+                                React.createElement('button', {
+                                    onClick: () => setShowAddCandidate(true),
+                                    className: "bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors"
+                                },
+                                    React.createElement(Plus, { className: "w-5 h-5" }),
+                                    "Add Candidate"
+                                )
+                            )
+                        )
+                    ),
+
+                    // Candidates Grid
+                    React.createElement('div', { className: "grid gap-6" },
+                        filteredCandidates.map(candidate => 
+                            React.createElement(CandidateCard, { key: candidate.id, candidate })
+                        )
+                    )
+                )
+            );
+
+            // Enhanced Candidate Card Component
+            const CandidateCard = ({ candidate }) => {
+                const status = statuses.find(s => s.value === candidate.status);
+                const candidateComments = comments.filter(c => c.candidate_id === candidate.id);
+                
+                const updateStatus = async (newStatus) => {
+                    const updatedCandidate = {
+                        ...candidate,
+                        status: newStatus,
+                        last_updated: new Date().toISOString()
+                    };
+                    
+                    setCandidates(prev => prev.map(c => c.id === candidate.id ? updatedCandidate : c));
+                    
+                    // Save to database
+                    if (dbConnected) {
+                        await supabase.update('candidates', updatedCandidate, `id=eq.${candidate.id}`);
+                    }
+                };
+
+                const updateScore = async (newScore) => {
+                    const updatedCandidate = {
+                        ...candidate,
+                        score: newScore,
+                        last_updated: new Date().toISOString()
+                    };
+                    
+                    setCandidates(prev => prev.map(c => c.id === candidate.id ? updatedCandidate : c));
+                    
+                    if (dbConnected) {
+                        await supabase.update('candidates', updatedCandidate, `id=eq.${candidate.id}`);
+                    }
+                };
+
+                return React.createElement('div', { 
+                    className: "dark-glass rounded-2xl p-6 card-hover animate-fade-in",
+                    onClick: () => setSelectedCandidate(candidate)
+                },
+                    React.createElement('div', { className: "flex items-start justify-between mb-4" },
+                        React.createElement('div', { className: "flex items-center gap-4" },
+                            React.createElement('div', { className: "w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-xl flex items-center justify-center text-white font-semibold" },
+                                candidate.name.split(' ').map(n => n[0]).join('')
+                            ),
+                            React.createElement('div', null,
+                                React.createElement('h3', { className: "text-lg font-semibold text-white" }, candidate.name),
+                                React.createElement('p', { className: "text-white/70" }, candidate.job_title),
+                                React.createElement('p', { className: "text-white/50 text-sm" }, candidate.company)
+                            )
+                        ),
+                        React.createElement('div', { className: "flex items-center gap-2" },
+                            React.createElement('select', {
+                                value: candidate.status,
+                                onChange: (e) => {
+                                    e.stopPropagation();
+                                    updateStatus(e.target.value);
+                                },
+                                className: `px-3 py-1 rounded-lg text-sm font-medium ${status?.color} ${status?.textColor} border-0 cursor-pointer`,
+                                onClick: (e) => e.stopPropagation()
+                            },
+                                statuses.map(s => 
+                                    React.createElement('option', { key: s.value, value: s.value }, s.label)
+                                )
+                            ),
+                            React.createElement('button', {
+                                onClick: (e) => {
+                                    e.stopPropagation();
+                                    setSelectedCandidate(candidate);
+                                },
+                                className: "p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+                            },
+                                React.createElement(Eye, { className: "w-4 h-4 text-white" })
+                            )
+                        )
+                    ),
+                    
+                    React.createElement('div', { className: "space-y-3" },
+                        // Score bar
+                        React.createElement('div', null,
+                            React.createElement('div', { className: "flex items-center justify-between mb-2" },
+                                React.createElement('span', { className: "text-white/70 text-sm" }, "Score"),
+                                React.createElement('span', { className: "text-white font-semibold" }, `${candidate.score || 0}/10`)
+                            ),
+                            React.createElement('div', { className: "w-full bg-white/10 rounded-full h-2" },
+                                React.createElement('div', { 
+                                    className: "score-bar h-2 rounded-full transition-all duration-300",
+                                    style: { width: `${(candidate.score || 0) * 10}%` }
+                                })
+                            ),
+                            React.createElement('div', { className: "flex gap-1 mt-2" },
+                                [1,2,3,4,5,6,7,8,9,10].map(score => 
+                                    React.createElement('button', {
+                                        key: score,
+                                        onClick: (e) => {
+                                            e.stopPropagation();
+                                            updateScore(score);
+                                        },
+                                        className: `w-6 h-6 rounded text-xs font-medium transition-colors ${
+                                            score <= (candidate.score || 0) 
+                                                ? 'bg-indigo-500 text-white' 
+                                                : 'bg-white/10 text-white/50 hover:bg-white/20'
+                                        }`
+                                    }, score)
+                                )
+                            )
+                        ),
+                        
+                        // Tags
+                        candidate.tags && React.createElement('div', { className: "flex flex-wrap gap-2" },
+                            candidate.tags.map(tag => 
+                                React.createElement('span', { 
+                                    key: tag,
+                                    className: "px-2 py-1 bg-white/10 text-white/80 rounded-lg text-xs tag-animate"
+                                }, tag)
+                            )
+                        ),
+                        
+                        // Latest comment
+                        candidateComments.length > 0 && React.createElement('div', { className: "bg-white/5 rounded-lg p-3" },
+                            React.createElement('div', { className: "flex items-center gap-2 mb-2" },
+                                React.createElement(MessageSquare, { className: "w-4 h-4 text-white/70" }),
+                                React.createElement('span', { className: "text-white/70 text-sm" }, "Latest Comment")
+                            ),
+                            React.createElement('p', { className: "text-white/90 text-sm" }, candidateComments[0].comment),
+                            React.createElement('p', { className: "text-white/50 text-xs mt-1" }, 
+                                `${candidateComments[0].author} • ${new Date(candidateComments[0].created_at).toLocaleDateString()}`
+                            )
+                        )
+                    )
+                );
+            };
+
+            // Add Candidate Modal (simplified for space)
+            const AddCandidateModal = () => {
                 const [formData, setFormData] = useState({
-                    name: '',
-                    company: '',
-                    job_title: ''
+                    name: '', email: '', phone: '', job_title: '', company: '',
+                    location: '', pipeline_id: pipelines[0]?.id || 1, tags: [], score: 5
                 });
 
                 const handleSubmit = async (e) => {
                     e.preventDefault();
-                    if (!formData.name || !formData.company || !formData.job_title) {
-                        alert('Please fill in all fields');
-                        return;
-                    }
-
                     const newCandidate = {
-                        name: formData.name,
-                        company: formData.company,
-                        job_title: formData.job_title,
-                        position: formData.job_title,
-                        email: '',
-                        phone: '',
-                        location: '',
+                        ...formData,
                         status: 'new',
-                        confidential: false,
-                        notes: '',
                         added_by: currentUser.name,
-                        added_date: new Date().toISOString().split('T')[0],
-                        last_updated: new Date().toISOString().split('T')[0]
+                        created_at: new Date().toISOString(),
+                        last_updated: new Date().toISOString()
                     };
 
-                    console.log('Saving new candidate:', newCandidate);
-                    const success = await saveCandidate(newCandidate);
-                    
-                    if (success) {
-                        console.log('Candidate saved successfully');
-                    } else {
-                        console.log('Candidate saved locally (database may be unavailable)');
-                    }
-                    
-                    setFormData({ name: '', company: '', job_title: '' });
-                    setShowAddForm(false);
+                    setCandidates(prev => [...prev, { ...newCandidate, id: Date.now() }]);
+                    setShowAddCandidate(false);
+                    setFormData({
+                        name: '', email: '', phone: '', job_title: '', company: '',
+                        location: '', pipeline_id: pipelines[0]?.id || 1, tags: [], score: 5
+                    });
                 };
 
-                return React.createElement('div', { 
-                    className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
-                },
-                    React.createElement('div', { className: "bg-white rounded-xl p-6 w-full max-w-md" },
-                        React.createElement('h2', { className: "text-xl font-bold mb-6" }, "Add New Candidate"),
+                return React.createElement('div', { className: "fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" },
+                    React.createElement('div', { className: "dark-glass rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" },
+                        React.createElement('div', { className: "flex items-center justify-between mb-6" },
+                            React.createElement('h2', { className: "text-2xl font-bold text-white" }, "Add New Candidate"),
+                            React.createElement('button', {
+                                onClick: () => setShowAddCandidate(false),
+                                className: "p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            },
+                                React.createElement(X, { className: "w-6 h-6 text-white" })
+                            )
+                        ),
+                        
                         React.createElement('form', { onSubmit: handleSubmit, className: "space-y-4" },
-                            React.createElement('div', null,
-                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Full Name *"),
-                                React.createElement('input', {
-                                    type: "text",
-                                    value: formData.name,
-                                    onChange: (e) => setFormData({...formData, name: e.target.value}),
-                                    className: "w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500",
-                                    placeholder: "e.g. John Smith",
-                                    required: true
-                                })
+                            React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+                                React.createElement('div', null,
+                                    React.createElement('label', { className: "block text-white/70 text-sm font-medium mb-2" }, "Full Name *"),
+                                    React.createElement('input', {
+                                        type: "text",
+                                        required: true,
+                                        value: formData.name,
+                                        onChange: (e) => setFormData({...formData, name: e.target.value}),
+                                        className: "w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30",
+                                        placeholder: "John Smith"
+                                    })
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('label', { className: "block text-white/70 text-sm font-medium mb-2" }, "Email"),
+                                    React.createElement('input', {
+                                        type: "email",
+                                        value: formData.email,
+                                        onChange: (e) => setFormData({...formData, email: e.target.value}),
+                                        className: "w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30",
+                                        placeholder: "john@company.com"
+                                    })
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('label', { className: "block text-white/70 text-sm font-medium mb-2" }, "Job Title *"),
+                                    React.createElement('input', {
+                                        type: "text",
+                                        required: true,
+                                        value: formData.job_title,
+                                        onChange: (e) => setFormData({...formData, job_title: e.target.value}),
+                                        className: "w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30",
+                                        placeholder: "Senior Developer"
+                                    })
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('label', { className: "block text-white/70 text-sm font-medium mb-2" }, "Company *"),
+                                    React.createElement('input', {
+                                        type: "text",
+                                        required: true,
+                                        value: formData.company,
+                                        onChange: (e) => setFormData({...formData, company: e.target.value}),
+                                        className: "w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-white/30",
+                                        placeholder: "Tech Corp Inc"
+                                    })
+                                )
                             ),
-                            React.createElement('div', null,
-                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Company *"),
-                                React.createElement('input', {
-                                    type: "text",
-                                    value: formData.company,
-                                    onChange: (e) => setFormData({...formData, company: e.target.value}),
-                                    className: "w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500",
-                                    placeholder: "e.g. Google, Microsoft",
-                                    required: true
-                                })
-                            ),
-                            React.createElement('div', null,
-                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Job Title *"),
-                                React.createElement('input', {
-                                    type: "text",
-                                    value: formData.job_title,
-                                    onChange: (e) => setFormData({...formData, job_title: e.target.value}),
-                                    className: "w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500",
-                                    placeholder: "e.g. Senior Developer, Sales Manager",
-                                    required: true
-                                })
-                            ),
-                            React.createElement('div', { className: "flex space-x-4 pt-4" },
+                            
+                            React.createElement('div', { className: "flex gap-6 pt-4" },
                                 React.createElement('button', {
                                     type: "submit",
-                                    className: "flex-1 bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 font-medium"
+                                    className: "flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-xl font-semibold transition-colors"
                                 }, "Add Candidate"),
                                 React.createElement('button', {
                                     type: "button",
-                                    onClick: () => setShowAddForm(false),
-                                    className: "flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-400 font-medium"
+                                    onClick: () => setShowAddCandidate(false),
+                                    className: "flex-1 bg-white/10 hover:bg-white/20 text-white py-3 px-6 rounded-xl font-semibold transition-colors"
                                 }, "Cancel")
                             )
                         )
@@ -314,356 +786,46 @@
                 );
             };
 
-            // Detailed Candidate View Component
-            const CandidateDetailView = () => {
-                const [editData, setEditData] = useState(viewingCandidate);
-                const [notes, setNotes] = useState(viewingCandidate.notes || '');
-                const [linkedinUrl, setLinkedinUrl] = useState(viewingCandidate.linkedin_url || '');
-
-                // Track view when component opens
-                useEffect(() => {
-                    if (viewingCandidate && !viewingCandidate.last_viewed) {
-                        trackCandidateView(viewingCandidate);
-                    }
-                }, []);
-
-                const handleSave = async () => {
-                    const updatedCandidate = {
-                        ...editData,
-                        notes,
-                        linkedin_url: linkedinUrl,
-                        last_updated: new Date().toISOString().split('T')[0]
-                    };
-                    await saveCandidate(updatedCandidate);
-                    setViewingCandidate(updatedCandidate);
-                    setIsEditing(false);
-                };
-
-                const updateStatus = async (newStatus) => {
-                    const updatedCandidate = {
-                        ...viewingCandidate,
-                        status: newStatus,
-                        last_updated: new Date().toISOString().split('T')[0]
-                    };
-                    await saveCandidate(updatedCandidate);
-                    setViewingCandidate(updatedCandidate);
-                };
-
-                const currentStatus = statuses.find(s => s.value === viewingCandidate.status);
-
-                // Format timestamp for display
-                const formatViewTime = (timestamp) => {
-                    if (!timestamp) return 'Never';
-                    const date = new Date(timestamp);
-                    return date.toLocaleString();
-                };
-
-                return React.createElement('div', { 
-                    className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
-                },
-                    React.createElement('div', { className: "bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" },
-                        React.createElement('div', { className: "p-6 border-b" },
-                            React.createElement('div', { className: "flex justify-between items-start" },
-                                React.createElement('div', null,
-                                    React.createElement('h2', { className: "text-2xl font-bold text-gray-900" }, viewingCandidate.name),
-                                    React.createElement('p', { className: "text-gray-600" }, `${viewingCandidate.job_title} at ${viewingCandidate.company}`),
-                                    React.createElement('div', { className: "flex items-center mt-2" },
-                                        React.createElement('span', { 
-                                            className: `px-3 py-1 rounded-full text-sm font-medium ${currentStatus?.color}` 
-                                        }, currentStatus?.label),
-                                        viewingCandidate.confidential && React.createElement('span', { 
-                                            className: "ml-2 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800" 
-                                        }, "🔒 Confidential")
-                                    )
-                                ),
-                                React.createElement('div', { className: "flex space-x-2" },
-                                    React.createElement('button', {
-                                        onClick: () => setIsEditing(!isEditing),
-                                        className: "bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-                                    }, isEditing ? 'Cancel Edit' : 'Edit'),
-                                    React.createElement('button', {
-                                        onClick: () => setViewingCandidate(null),
-                                        className: "text-gray-400 hover:text-gray-600 text-2xl"
-                                    }, "×")
-                                )
-                            )
-                        ),
-
-                        React.createElement('div', { className: "p-6 grid grid-cols-3 gap-6" },
-                            React.createElement('div', { className: "col-span-2 space-y-6" },
-                                isEditing ? 
-                                    React.createElement('div', { className: "space-y-4" },
-                                        React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "Edit Candidate Information"),
-                                        React.createElement('div', { className: "grid grid-cols-2 gap-4" },
-                                            React.createElement('div', null,
-                                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Name"),
-                                                React.createElement('input', {
-                                                    type: "text",
-                                                    value: editData.name,
-                                                    onChange: (e) => setEditData({...editData, name: e.target.value}),
-                                                    className: "w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                                })
-                                            ),
-                                            React.createElement('div', null,
-                                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Email"),
-                                                React.createElement('input', {
-                                                    type: "email",
-                                                    value: editData.email,
-                                                    onChange: (e) => setEditData({...editData, email: e.target.value}),
-                                                    className: "w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                                })
-                                            ),
-                                            React.createElement('div', null,
-                                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Phone"),
-                                                React.createElement('input', {
-                                                    type: "tel",
-                                                    value: editData.phone,
-                                                    onChange: (e) => setEditData({...editData, phone: e.target.value}),
-                                                    className: "w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                                })
-                                            ),
-                                            React.createElement('div', null,
-                                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Job Title"),
-                                                React.createElement('input', {
-                                                    type: "text",
-                                                    value: editData.job_title,
-                                                    onChange: (e) => setEditData({...editData, job_title: e.target.value}),
-                                                    className: "w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                                })
-                                            ),
-                                            React.createElement('div', null,
-                                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Company"),
-                                                React.createElement('input', {
-                                                    type: "text",
-                                                    value: editData.company,
-                                                    onChange: (e) => setEditData({...editData, company: e.target.value}),
-                                                    className: "w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                                })
-                                            ),
-                                            React.createElement('div', null,
-                                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Location"),
-                                                React.createElement('input', {
-                                                    type: "text",
-                                                    value: editData.location,
-                                                    onChange: (e) => setEditData({...editData, location: e.target.value}),
-                                                    className: "w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                                })
-                                            ),
-                                            React.createElement('div', null,
-                                                React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "LinkedIn URL"),
-                                                React.createElement('input', {
-                                                    type: "url",
-                                                    value: linkedinUrl,
-                                                    onChange: (e) => setLinkedinUrl(e.target.value),
-                                                    placeholder: "https://linkedin.com/in/username",
-                                                    className: "w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                                })
-                                            )
-                                        ),
-                                        React.createElement('button', {
-                                            onClick: handleSave,
-                                            className: "bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
-                                        }, "Save Changes")
-                                    ) :
-                                    React.createElement('div', null,
-                                        React.createElement('div', null,
-                                            React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "Contact Information"),
-                                            React.createElement('div', { className: "bg-gray-50 p-4 rounded-lg space-y-2" },
-                                                React.createElement('p', null, React.createElement('strong', null, "Email: "), viewingCandidate.email || 'Not provided'),
-                                                React.createElement('p', null, React.createElement('strong', null, "Phone: "), viewingCandidate.phone || 'Not provided'),
-                                                React.createElement('p', null, React.createElement('strong', null, "Location: "), viewingCandidate.location || 'Not provided'),
-                                                React.createElement('p', null, React.createElement('strong', null, "Job Title: "), viewingCandidate.job_title),
-                                                React.createElement('p', null, React.createElement('strong', null, "Company: "), viewingCandidate.company),
-                                                viewingCandidate.linkedin_url && React.createElement('p', null, 
-                                                    React.createElement('strong', null, "LinkedIn: "),
-                                                    React.createElement('a', {
-                                                        href: viewingCandidate.linkedin_url,
-                                                        target: '_blank',
-                                                        rel: 'noopener noreferrer',
-                                                        className: 'text-blue-600 hover:text-blue-800 underline'
-                                                    }, 'View Profile')
-                                                )
-                                            )
-                                        ),
-
-                                        React.createElement('div', null,
-                                            React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "LinkedIn Profile"),
-                                            React.createElement('input', {
-                                                type: "url",
-                                                value: linkedinUrl,
-                                                onChange: (e) => setLinkedinUrl(e.target.value),
-                                                placeholder: "https://linkedin.com/in/username",
-                                                className: "w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 mb-2"
-                                            }),
-                                            React.createElement('button', {
-                                                onClick: handleSave,
-                                                className: "bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                                            }, "Save LinkedIn URL")
-                                        ),
-
-                                        React.createElement('div', null,
-                                            React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "Status Management"),
-                                            React.createElement('div', { className: "flex flex-wrap gap-2" },
-                                                statuses.map(status => 
-                                                    React.createElement('button', {
-                                                        key: status.value,
-                                                        onClick: () => updateStatus(status.value),
-                                                        className: `px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                                                            viewingCandidate.status === status.value 
-                                                                ? status.color
-                                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                        }`
-                                                    }, status.label)
-                                                )
-                                            )
-                                        ),
-
-                                        React.createElement('div', null,
-                                            React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "Notes"),
-                                            React.createElement('textarea', {
-                                                value: notes,
-                                                onChange: (e) => setNotes(e.target.value),
-                                                placeholder: "Add notes about this candidate...",
-                                                className: "w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 h-32"
-                                            }),
-                                            React.createElement('button', {
-                                                onClick: handleSave,
-                                                className: "mt-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-                                            }, "Save Notes")
-                                        )
-                                    )
-                            ),
-
-                            React.createElement('div', { className: "space-y-6" },
-                                React.createElement('div', null,
-                                    React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "Candidate Info"),
-                                    React.createElement('div', { className: "bg-gray-50 p-3 rounded-lg space-y-2 text-sm" },
-                                        React.createElement('p', null, React.createElement('strong', null, "Added by: "), viewingCandidate.added_by),
-                                        React.createElement('p', null, React.createElement('strong', null, "Added: "), viewingCandidate.added_date),
-                                        React.createElement('p', null, React.createElement('strong', null, "Last updated: "), viewingCandidate.last_updated)
-                                    )
-                                ),
-
-                                React.createElement('div', null,
-                                    React.createElement('h3', { className: "text-lg font-semibold mb-3" }, "View History"),
-                                    React.createElement('div', { className: "bg-blue-50 p-3 rounded-lg space-y-2 text-sm" },
-                                        React.createElement('p', null, React.createElement('strong', null, "Last viewed: "), formatViewTime(viewingCandidate.last_viewed)),
-                                        viewingCandidate.last_viewed_by && React.createElement('p', null, React.createElement('strong', null, "Viewed by: "), viewingCandidate.last_viewed_by),
-                                        React.createElement('p', { className: 'text-xs text-gray-600 mt-2' }, "This record was accessed when you opened this detail view.")
-                                    )
-                                )
-                            )
-                        )
-                    )
-                );
-            };
-
-            // Login Screen
-            if (!currentUser) {
-                return React.createElement('div', { 
-                    className: "min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center" 
-                }, 
-                    React.createElement('div', { 
-                        className: "bg-white p-8 rounded-xl shadow-lg w-full max-w-md" 
-                    },
-                        React.createElement('div', { className: "text-center mb-8" },
-                            React.createElement('h1', { className: "text-3xl font-bold text-gray-900 mb-2" }, "RecruitPro CRM"),
-                            React.createElement('p', { className: "text-gray-600" }, "Secure recruitment management system"),
-                            React.createElement('div', { className: "mt-3 p-2 bg-green-100 rounded-lg" },
-                                React.createElement('p', { className: "text-sm text-green-800" }, "✅ Connected to Database")
-                            )
-                        ),
-                        React.createElement('div', { className: "space-y-4" },
-                            React.createElement('div', { className: "text-center" },
-                                React.createElement('div', { 
-                                    className: "w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl mx-auto mb-4" 
-                                }, "CM"),
-                                React.createElement('h3', { className: "text-lg font-semibold text-gray-700" }, "Chris van der Merwe"),
-                                React.createElement('p', { className: "text-sm text-gray-500" }, "Administrator")
-                            ),
-                            React.createElement('div', { className: "space-y-3" },
-                                React.createElement('div', null,
-                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "Password"),
-                                    React.createElement('input', {
-                                        type: "password",
-                                        value: loginPassword,
-                                        onChange: (e) => setLoginPassword(e.target.value),
-                                        placeholder: "Enter your password",
-                                        className: "w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500",
-                                        onKeyPress: (e) => {
-                                            if (e.key === 'Enter') {
-                                                if (loginPassword === users[0].password) {
-                                                    setCurrentUser(users[0]);
-                                                } else {
-                                                    alert('Incorrect password');
-                                                    setLoginPassword('');
-                                                }
-                                            }
-                                        }
-                                    })
-                                ),
-                                React.createElement('button', {
-                                    onClick: () => {
-                                        if (loginPassword === users[0].password) {
-                                            setCurrentUser(users[0]);
-                                        } else {
-                                            alert('Incorrect password');
-                                            setLoginPassword('');
-                                        }
-                                    },
-                                    className: "w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 font-medium"
-                                }, "Sign In")
-                            )
-                        )
-                    )
-                );
-            }
-
-            // Simple dashboard for space reasons
-            const filteredCandidates = candidates.filter(candidate => {
-                if (candidate.confidential && currentUser.role !== 'admin') {
-                    return false;
-                }
-                
-                const matchesSearch = candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     candidate.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     candidate.email.toLowerCase().includes(searchTerm.toLowerCase());
-                
-                const matchesStatus = statusFilter === 'all' || candidate.status === statusFilter;
-                
-                return matchesSearch && matchesStatus;
-            });
-
-            return React.createElement('div', { className: "min-h-screen bg-gray-50" },
+            return React.createElement('div', { className: "min-h-screen gradient-bg" },
                 // Header
-                React.createElement('header', { className: "bg-white shadow-sm border-b" },
-                    React.createElement('div', { className: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" },
-                        React.createElement('div', { className: "flex justify-between items-center h-16" },
-                            React.createElement('div', { className: "flex items-center" },
-                                React.createElement('h1', { className: "text-xl font-bold text-gray-900 mr-4" }, "RecruitPro CRM"),
+                React.createElement('header', { className: "dark-glass border-b border-white/10" },
+                    React.createElement('div', { className: "max-w-7xl mx-auto px-6 py-4" },
+                        React.createElement('div', { className: "flex items-center justify-between" },
+                            React.createElement('div', { className: "flex items-center gap-4" },
+                                React.createElement('div', { className: "w-10 h-10 bg-white rounded-xl flex items-center justify-center" },
+                                    React.createElement('span', { className: "text-indigo-600 font-bold" }, "RP")
+                                ),
+                                React.createElement('div', null,
+                                    React.createElement('h1', { className: "text-xl font-bold text-white" }, "RecruitPro"),
+                                    React.createElement('p', { className: "text-white/60 text-sm" }, "Next-Generation CRM")
+                                ),
                                 React.createElement('span', { 
-                                    className: `px-2 py-1 text-xs rounded-full ${dbConnected ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}` 
-                                }, dbConnected ? "Database Connected" : "Local Mode")
+                                    className: `px-3 py-1 rounded-full text-xs font-medium ${
+                                        dbConnected ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+                                    }`
+                                }, dbConnected ? "Database Connected" : "Demo Mode")
                             ),
-                            React.createElement('div', { className: "flex items-center space-x-4" },
-                                React.createElement('div', { className: "flex items-center space-x-2" },
-                                    React.createElement('div', { 
-                                        className: "w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center" 
-                                    },
-                                        React.createElement('span', { 
-                                            className: "text-sm font-medium text-indigo-600" 
-                                        }, currentUser.avatar)
+                            React.createElement('div', { className: "flex items-center gap-4" },
+                                React.createElement('button', {
+                                    onClick: () => setShowAnalytics(true),
+                                    className: "p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                },
+                                    React.createElement(BarChart3, { className: "w-5 h-5 text-white" })
+                                ),
+                                React.createElement('div', { className: "flex items-center gap-3" },
+                                    React.createElement('div', { className: "w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center" },
+                                        React.createElement('span', { className: "text-white text-sm font-medium" }, currentUser.avatar)
                                     ),
-                                    React.createElement('span', { 
-                                        className: "text-sm font-medium text-gray-700" 
-                                    }, currentUser.name),
+                                    React.createElement('span', { className: "text-white font-medium" }, currentUser.name),
                                     React.createElement('button', {
                                         onClick: () => {
                                             setCurrentUser(null);
                                             setLoginPassword('');
                                         },
-                                        className: "ml-4 text-sm text-gray-500 hover:text-gray-700"
-                                    }, "Sign Out")
+                                        className: "p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                    },
+                                        React.createElement(LogOut, { className: "w-4 h-4 text-white/70" })
+                                    )
                                 )
                             )
                         )
@@ -671,131 +833,23 @@
                 ),
 
                 // Main Content
-                React.createElement('main', { className: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" },
-                    React.createElement('div', { className: "space-y-6" },
-                        // Stats
-                        React.createElement('div', { className: "grid grid-cols-3 gap-6" },
-                            React.createElement('div', { className: "bg-white p-6 rounded-xl shadow-sm border" },
-                                React.createElement('p', { className: "text-sm font-medium text-gray-600" }, "Total Candidates"),
-                                React.createElement('p', { className: "text-2xl font-bold text-gray-900" }, candidates.length)
-                            ),
-                            React.createElement('div', { className: "bg-white p-6 rounded-xl shadow-sm border" },
-                                React.createElement('p', { className: "text-sm font-medium text-gray-600" }, "Interviewing"),
-                                React.createElement('p', { className: "text-2xl font-bold text-gray-900" }, 
-                                    candidates.filter(c => c.status === 'interviewing').length)
-                            ),
-                            React.createElement('div', { className: "bg-white p-6 rounded-xl shadow-sm border" },
-                                React.createElement('p', { className: "text-sm font-medium text-gray-600" }, "Hired"),
-                                React.createElement('p', { className: "text-2xl font-bold text-gray-900" }, 
-                                    candidates.filter(c => c.status === 'hired').length)
+                React.createElement('main', { className: "max-w-7xl mx-auto px-6 py-8" },
+                    loading ? 
+                        React.createElement('div', { className: "flex items-center justify-center h-64" },
+                            React.createElement('div', { className: "text-white text-center" },
+                                React.createElement('div', { className: "animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" }),
+                                React.createElement('p', null, "Loading your recruitment data...")
                             )
-                        ),
-
-                        // Search and Add
-                        React.createElement('div', { className: "bg-white p-6 rounded-xl shadow-sm border" },
-                            React.createElement('div', { className: "flex space-x-4" },
-                                React.createElement('input', {
-                                    type: "text",
-                                    placeholder: "Search candidates...",
-                                    value: searchTerm,
-                                    onChange: (e) => setSearchTerm(e.target.value),
-                                    className: "flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                }),
-                                React.createElement('select', {
-                                    value: statusFilter,
-                                    onChange: (e) => setStatusFilter(e.target.value),
-                                    className: "px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                                },
-                                    React.createElement('option', { value: "all" }, "All Statuses"),
-                                    ...statuses.map(status => 
-                                        React.createElement('option', { key: status.value, value: status.value }, status.label)
-                                    )
-                                ),
-                                React.createElement('button', {
-                                    onClick: () => setShowAddForm(true),
-                                    className: "bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-                                }, "➕ Add Candidate")
-                            )
-                        ),
-
-                        // Candidates Table
-                        React.createElement('div', { className: "bg-white rounded-xl shadow-sm border overflow-hidden" },
-                            React.createElement('div', { className: "overflow-x-auto" },
-                                React.createElement('table', { className: "w-full" },
-                                    React.createElement('thead', { className: "bg-gray-50" },
-                                        React.createElement('tr', null,
-                                            React.createElement('th', { 
-                                                className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" 
-                                            }, "Candidate"),
-                                            React.createElement('th', { 
-                                                className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" 
-                                            }, "Position"),
-                                            React.createElement('th', { 
-                                                className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" 
-                                            }, "Status"),
-                                            React.createElement('th', { 
-                                                className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" 
-                                            }, "Company"),
-                                            React.createElement('th', { 
-                                                className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" 
-                                            }, "Actions")
-                                        )
-                                    ),
-                                    React.createElement('tbody', { className: "bg-white divide-y divide-gray-200" },
-                                        filteredCandidates.map(candidate => {
-                                            const status = statuses.find(s => s.value === candidate.status);
-                                            return React.createElement('tr', { key: candidate.id, className: "hover:bg-gray-50" },
-                                                React.createElement('td', { className: "px-6 py-4 whitespace-nowrap" },
-                                                    React.createElement('div', { className: "flex items-center" },
-                                                        React.createElement('div', { 
-                                                            className: "h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center mr-4" 
-                                                        },
-                                                            React.createElement('span', { 
-                                                                className: "text-sm font-medium text-indigo-600" 
-                                                            }, candidate.name.split(' ').map(n => n[0]).join(''))
-                                                        ),
-                                                        React.createElement('div', null,
-                                                            React.createElement('button', {
-                                                                onClick: () => trackCandidateView(candidate),
-                                                                className: "text-sm font-medium text-indigo-600 hover:text-indigo-900"
-                                                            }, candidate.name),
-                                                            React.createElement('div', { className: "text-sm text-gray-500" }, candidate.email)
-                                                        )
-                                                    )
-                                                ),
-                                                React.createElement('td', { className: "px-6 py-4 whitespace-nowrap" },
-                                                    React.createElement('div', { className: "text-sm text-gray-900" }, candidate.position),
-                                                    React.createElement('div', { className: "text-sm text-gray-500" }, candidate.job_title)
-                                                ),
-                                                React.createElement('td', { className: "px-6 py-4 whitespace-nowrap" },
-                                                    React.createElement('span', { 
-                                                        className: `px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${status?.color}` 
-                                                    }, status?.label)
-                                                ),
-                                                React.createElement('td', { className: "px-6 py-4 whitespace-nowrap text-sm text-gray-900" }, 
-                                                    candidate.company),
-                                                React.createElement('td', { className: "px-6 py-4 whitespace-nowrap text-sm font-medium" },
-                                                    React.createElement('button', {
-                                                        onClick: () => trackCandidateView(candidate),
-                                                        className: "text-indigo-600 hover:text-indigo-900"
-                                                    }, "👁️ View Details")
-                                                )
-                                            );
-                                        })
-                                    )
-                                )
-                            )
-                        )
-                    )
+                        ) :
+                        React.createElement(Dashboard)
                 ),
 
                 // Modals
-                showAddForm && React.createElement(AddCandidateForm),
-                viewingCandidate && React.createElement(CandidateDetailView)
+                showAddCandidate && React.createElement(AddCandidateModal)
             );
         };
 
-        ReactDOM.render(React.createElement(RecruitmentCRM), document.getElementById('root'));
+        ReactDOM.render(React.createElement(NextGenCRM), document.getElementById('root'));
     </script>
 </body>
 </html>
