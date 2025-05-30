@@ -1409,6 +1409,696 @@
                 setSelectedCandidate(null);
             };
 
+            // Candidates View Component
+            const CandidatesView = ({ filteredCandidates, stats, allTags }) => (
+                <div>
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.total}</div>
+                            <div className="stat-label">Total Candidates</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.interviewing}</div>
+                            <div className="stat-label">Interviewing</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.diversity}</div>
+                            <div className="stat-label">Diversity Hires</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.hired}</div>
+                            <div className="stat-label">Hired</div>
+                        </div>
+                    </div>
+
+                    <div className="controls-row">
+                        <input
+                            type="text"
+                            className="search-bar"
+                            placeholder="Search candidates by name, title, company, location, notes, source, or comments..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        
+                        <select
+                            className="filter-select"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                            <option value="all">All Statuses</option>
+                            {statuses.map(status => (
+                                <option key={status.value} value={status.value}>
+                                    {status.label}
+                                </option>
+                            ))}
+                        </select>
+                        
+                        <select
+                            className="filter-select"
+                            value={tagFilter}
+                            onChange={(e) => setTagFilter(e.target.value)}
+                        >
+                            <option value="all">All Tags</option>
+                            {allTags.map(tag => (
+                                <option key={tag} value={tag}>
+                                    {tag}
+                                </option>
+                            ))}
+                        </select>
+
+                        <button className="add-button" onClick={() => setShowAddModal(true)}>
+                            ➕ Add Candidate
+                        </button>
+                    </div>
+
+                    <div className="candidates-grid">
+                        {filteredCandidates.map(candidate => (
+                            <div key={candidate.id} className="candidate-card">
+                                <div className="candidate-header">
+                                    <div className="candidate-info">
+                                        <div 
+                                            className="candidate-name" 
+                                            onClick={() => viewCandidateDetails(candidate)}
+                                            style={{cursor: 'pointer', color: '#8b5cf6'}}
+                                        >
+                                            {candidate.name}
+                                        </div>
+                                        <div className="candidate-title">{candidate.job_title}</div>
+                                        <div className="candidate-company">{candidate.company}</div>
+                                        {candidate.location && (
+                                            <div className="candidate-location">
+                                                📍 {candidate.location}
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <select
+                                        value={candidate.status}
+                                        onChange={(e) => updateStatus(candidate.id, e.target.value)}
+                                        className={`status-badge status-${candidate.status}`}
+                                        style={{border: 'none', cursor: 'pointer'}}
+                                    >
+                                        {statuses.map(status => (
+                                            <option key={status.value} value={status.value}>
+                                                {status.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Notes Preview */}
+                                {candidate.notes && (
+                                    <div className="candidate-notes-preview">
+                                        {candidate.notes.length > 100 ? 
+                                            `${candidate.notes.substring(0, 100)}...` : 
+                                            candidate.notes
+                                        }
+                                    </div>
+                                )}
+
+                                {/* Tags */}
+                                {candidate.tags && candidate.tags.length > 0 && (
+                                    <div className="tags-container">
+                                        {candidate.tags.slice(0, 3).map(tag => (
+                                            <div key={tag} className="tag">
+                                                {tag}
+                                            </div>
+                                        ))}
+                                        {candidate.tags.length > 3 && (
+                                            <div className="tag">
+                                                +{candidate.tags.length - 3}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Score Section */}
+                                <div className="score-section">
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px'}}>
+                                        <span style={{fontSize: '11px', color: '#cbd5e1', fontWeight: '600'}}>Score</span>
+                                        <span style={{fontSize: '12px', fontWeight: 'bold', color: '#8b5cf6'}}>
+                                            {candidate.score || 0}/10
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="score-bar">
+                                        <div 
+                                            className="score-fill"
+                                            style={{width: `${(candidate.score || 0) * 10}%`}}
+                                        ></div>
+                                    </div>
+                                    
+                                    <div className="score-buttons">
+                                        {[1,2,3,4,5,6,7,8,9,10].map(score => (
+                                            <button
+                                                key={score}
+                                                className={`score-btn ${score <= (candidate.score || 0) ? 'active' : ''}`}
+                                                onClick={() => updateScore(candidate.id, score)}
+                                            >
+                                                {score}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Metadata */}
+                                <div className="candidate-metadata">
+                                    <div className="metadata-item">
+                                        👤 Added {formatTimeAgo(candidate.created_at)} by {candidate.created_by}
+                                    </div>
+                                    {candidate.source && (
+                                        <div className="metadata-item">
+                                            📢 Source: {candidate.source}
+                                        </div>
+                                    )}
+                                    {candidate.gender && (
+                                        <div className="metadata-item">
+                                            👥 {candidate.gender}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div style={{display: 'flex', gap: '8px', marginTop: '15px'}}>
+                                    <button 
+                                        className="action-btn primary"
+                                        onClick={() => viewCandidateDetails(candidate)}
+                                        style={{flex: 1}}
+                                    >
+                                        👁️ View Details
+                                    </button>
+                                    <button 
+                                        className="action-btn success"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            // Future: Open interview scheduling
+                                        }}
+                                        style={{flex: 1}}
+                                    >
+                                        📅 Schedule
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {filteredCandidates.length === 0 && (
+                        <div style={{
+                            textAlign: 'center', 
+                            padding: '80px 20px', 
+                            color: '#94a3b8',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            borderRadius: '24px',
+                            border: '2px dashed rgba(255, 255, 255, 0.1)'
+                        }}>
+                            <div style={{fontSize: '64px', marginBottom: '20px'}}>🔍</div>
+                            <h3 style={{marginBottom: '10px', color: '#cbd5e1'}}>
+                                {searchTerm || statusFilter !== 'all' || tagFilter !== 'all' ? 
+                                    'No candidates match your filters' : 
+                                    'No candidates yet'
+                                }
+                            </h3>
+                            <p style={{marginBottom: '20px'}}>
+                                {searchTerm || statusFilter !== 'all' || tagFilter !== 'all' ? 
+                                    'Try adjusting your search criteria or filters.' : 
+                                    'Start building your talent pipeline by adding your first candidate.'
+                                }
+                            </p>
+                            {!(searchTerm || statusFilter !== 'all' || tagFilter !== 'all') && (
+                                <button className="btn-primary" onClick={() => setShowAddModal(true)}>
+                                    Add Your First Candidate
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+
+            // Analytics Dashboard Component  
+            const AnalyticsDashboard = () => {
+                useEffect(() => {
+                    if (activeTab === 'analytics' && chartRef.current) {
+                        if (chartInstance.current) {
+                            chartInstance.current.destroy();
+                        }
+
+                        const ctx = chartRef.current.getContext('2d');
+                        
+                        const statusData = statuses.map(status => ({
+                            label: status.label,
+                            count: candidates.filter(c => c.status === status.value).length
+                        }));
+
+                        chartInstance.current = new Chart(ctx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: statusData.map(d => d.label),
+                                datasets: [{
+                                    data: statusData.map(d => d.count),
+                                    backgroundColor: [
+                                        '#3b82f6',
+                                        '#f59e0b',
+                                        '#8b5cf6',
+                                        '#10b981',
+                                        '#06b6d4',
+                                        '#ef4444'
+                                    ],
+                                    borderWidth: 0
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        labels: {
+                                            color: '#e2e8f0',
+                                            font: {
+                                                family: 'Inter',
+                                                size: 12
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    return () => {
+                        if (chartInstance.current) {
+                            chartInstance.current.destroy();
+                        }
+                    };
+                }, [activeTab, candidates]);
+
+                const topPerformers = [...candidates]
+                    .sort((a, b) => (b.score || 0) - (a.score || 0))
+                    .slice(0, 5);
+
+                const recentActivity = candidates
+                    .flatMap(c => (c.timeline || []).map(t => ({...t, candidateName: c.name})))
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                    .slice(0, 10);
+
+                const diversityStats = {
+                    total: candidates.length,
+                    female: candidates.filter(c => c.gender === 'Female').length,
+                    male: candidates.filter(c => c.gender === 'Male').length,
+                    nonBinary: candidates.filter(c => c.gender === 'Non-binary').length,
+                    other: candidates.filter(c => c.gender === 'Other').length,
+                    notSpecified: candidates.filter(c => !c.gender || c.gender === 'Prefer not to say').length
+                };
+
+                const sourceStats = sourcesOptions.map(source => ({
+                    source,
+                    count: candidates.filter(c => c.source === source).length
+                })).filter(s => s.count > 0).sort((a, b) => b.count - a.count);
+
+                return (
+                    <div>
+                        <div className="stats-grid">
+                            <div className="stat-card">
+                                <div className="stat-number">{stats.total}</div>
+                                <div className="stat-label">Total Candidates</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{stats.newThisWeek}</div>
+                                <div className="stat-label">New This Week</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{stats.avgScore}</div>
+                                <div className="stat-label">Average Score</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{Math.round((stats.diversity / stats.total) * 100) || 0}%</div>
+                                <div className="stat-label">Diversity Rate</div>
+                            </div>
+                        </div>
+
+                        <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px', marginBottom: '40px'}}>
+                            <div className="chart-container">
+                                <h3 className="chart-title">Candidate Status Distribution</h3>
+                                <div style={{height: '300px', position: 'relative'}}>
+                                    <canvas ref={chartRef}></canvas>
+                                </div>
+                            </div>
+                            
+                            <div className="chart-container">
+                                <h3 className="chart-title">Top Performers</h3>
+                                <div style={{maxHeight: '300px', overflowY: 'auto'}}>
+                                    {topPerformers.map((candidate, index) => (
+                                        <div key={candidate.id} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '12px 0',
+                                            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                                            cursor: 'pointer'
+                                        }}
+                                        onClick={() => viewCandidateDetails(candidate)}>
+                                            <div>
+                                                <div style={{fontWeight: '600', color: '#f8fafc'}}>
+                                                    #{index + 1} {candidate.name}
+                                                </div>
+                                                <div style={{fontSize: '14px', color: '#94a3b8'}}>
+                                                    {candidate.job_title} at {candidate.company}
+                                                </div>
+                                            </div>
+                                            <div style={{
+                                                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                                                color: 'white',
+                                                padding: '6px 12px',
+                                                borderRadius: '12px',
+                                                fontWeight: '600',
+                                                fontSize: '14px'
+                                            }}>
+                                                {candidate.score || 0}/10
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Diversity Analytics */}
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '40px'}}>
+                            <div className="chart-container">
+                                <h3 className="chart-title">Diversity Breakdown</h3>
+                                <div style={{display: 'grid', gap: '15px'}}>
+                                    {Object.entries(diversityStats).filter(([key]) => key !== 'total').map(([key, value]) => (
+                                        <div key={key} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '12px 16px',
+                                            background: 'rgba(139, 92, 246, 0.08)',
+                                            borderRadius: '12px',
+                                            border: '1px solid rgba(139, 92, 246, 0.2)'
+                                        }}>
+                                            <span style={{color: '#e2e8f0', fontWeight: '500', textTransform: 'capitalize'}}>
+                                                {key.replace(/([A-Z])/g, ' $1').trim()}
+                                            </span>
+                                            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                                <span style={{color: '#8b5cf6', fontWeight: '700'}}>{value}</span>
+                                                <span style={{color: '#94a3b8', fontSize: '12px'}}>
+                                                    ({diversityStats.total > 0 ? Math.round((value / diversityStats.total) * 100) : 0}%)
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="chart-container">
+                                <h3 className="chart-title">Top Sources</h3>
+                                <div style={{maxHeight: '300px', overflowY: 'auto'}}>
+                                    {sourceStats.slice(0, 8).map((stat, index) => (
+                                        <div key={stat.source} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '12px 0',
+                                            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+                                        }}>
+                                            <div>
+                                                <div style={{fontWeight: '600', color: '#f8fafc'}}>
+                                                    {stat.source}
+                                                </div>
+                                            </div>
+                                            <div style={{
+                                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                                color: 'white',
+                                                padding: '4px 10px',
+                                                borderRadius: '8px',
+                                                fontWeight: '600',
+                                                fontSize: '12px'
+                                            }}>
+                                                {stat.count}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Recent Activity */}
+                        <div className="chart-container">
+                            <h3 className="chart-title">Recent Activity Timeline</h3>
+                            <div style={{maxHeight: '400px', overflowY: 'auto'}}>
+                                {recentActivity.map((activity, index) => (
+                                    <div key={index} className="timeline-item" style={{marginBottom: '15px'}}>
+                                        <div className="timeline-icon">
+                                            {activity.type === 'created' ? '✨' : 
+                                             activity.type === 'comment' ? '💬' :
+                                             activity.type === 'status' ? '🔄' :
+                                             activity.type === 'score' ? '⭐' : '📝'}
+                                        </div>
+                                        <div className="timeline-content">
+                                            <div className="timeline-header">
+                                                <div className="timeline-action">
+                                                    {activity.action} - {activity.candidateName}
+                                                </div>
+                                                <div className="timeline-timestamp">
+                                                    {formatTimeAgo(activity.timestamp)}
+                                                </div>
+                                            </div>
+                                            <div className="timeline-description">{activity.description}</div>
+                                            <div className="timeline-user">by {activity.user}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            // Simple placeholder components for other tabs
+            const InterviewsView = () => (
+                <div>
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.total}</div>
+                            <div className="stat-label">Total Candidates</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.interviewing}</div>
+                            <div className="stat-label">Interviewing</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.diversity}</div>
+                            <div className="stat-label">Diversity Hires</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.hired}</div>
+                            <div className="stat-label">Hired</div>
+                        </div>
+                    </div>
+
+                    <div className="controls-row">
+                        <input
+                            type="text"
+                            className="search-bar"
+                            placeholder="Search candidates by name, title, company, location, notes, source, or comments..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        
+                        <select
+                            className="filter-select"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                            <option value="all">All Statuses</option>
+                            {statuses.map(status => (
+                                <option key={status.value} value={status.value}>
+                                    {status.label}
+                                </option>
+                            ))}
+                        </select>
+                        
+                        <select
+                            className="filter-select"
+                            value={tagFilter}
+                            onChange={(e) => setTagFilter(e.target.value)}
+                        >
+                            <option value="all">All Tags</option>
+                            {allTags.map(tag => (
+                                <option key={tag} value={tag}>
+                                    {tag}
+                                </option>
+                            ))}
+                        </select>
+
+                        <button className="add-button" onClick={() => setShowAddModal(true)}>
+                            ➕ Add Candidate
+                        </button>
+                    </div>
+
+                    <div className="candidates-grid">
+                        {filteredCandidates.map(candidate => (
+                            <div key={candidate.id} className="candidate-card">
+                                <div className="candidate-header">
+                                    <div className="candidate-info">
+                                        <div 
+                                            className="candidate-name" 
+                                            onClick={() => viewCandidateDetails(candidate)}
+                                            style={{cursor: 'pointer', color: '#8b5cf6'}}
+                                        >
+                                            {candidate.name}
+                                        </div>
+                                        <div className="candidate-title">{candidate.job_title}</div>
+                                        <div className="candidate-company">{candidate.company}</div>
+                                        {candidate.location && (
+                                            <div className="candidate-location">
+                                                📍 {candidate.location}
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <select
+                                        value={candidate.status}
+                                        onChange={(e) => updateStatus(candidate.id, e.target.value)}
+                                        className={`status-badge status-${candidate.status}`}
+                                        style={{border: 'none', cursor: 'pointer'}}
+                                    >
+                                        {statuses.map(status => (
+                                            <option key={status.value} value={status.value}>
+                                                {status.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Notes Preview */}
+                                {candidate.notes && (
+                                    <div className="candidate-notes-preview">
+                                        {candidate.notes.length > 100 ? 
+                                            `${candidate.notes.substring(0, 100)}...` : 
+                                            candidate.notes
+                                        }
+                                    </div>
+                                )}
+
+                                {/* Tags */}
+                                {candidate.tags && candidate.tags.length > 0 && (
+                                    <div className="tags-container">
+                                        {candidate.tags.slice(0, 3).map(tag => (
+                                            <div key={tag} className="tag">
+                                                {tag}
+                                            </div>
+                                        ))}
+                                        {candidate.tags.length > 3 && (
+                                            <div className="tag">
+                                                +{candidate.tags.length - 3}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Score Section */}
+                                <div className="score-section">
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px'}}>
+                                        <span style={{fontSize: '11px', color: '#cbd5e1', fontWeight: '600'}}>Score</span>
+                                        <span style={{fontSize: '12px', fontWeight: 'bold', color: '#8b5cf6'}}>
+                                            {candidate.score || 0}/10
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="score-bar">
+                                        <div 
+                                            className="score-fill"
+                                            style={{width: `${(candidate.score || 0) * 10}%`}}
+                                        ></div>
+                                    </div>
+                                    
+                                    <div className="score-buttons">
+                                        {[1,2,3,4,5,6,7,8,9,10].map(score => (
+                                            <button
+                                                key={score}
+                                                className={`score-btn ${score <= (candidate.score || 0) ? 'active' : ''}`}
+                                                onClick={() => updateScore(candidate.id, score)}
+                                            >
+                                                {score}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Metadata */}
+                                <div className="candidate-metadata">
+                                    <div className="metadata-item">
+                                        👤 Added {formatTimeAgo(candidate.created_at)} by {candidate.created_by}
+                                    </div>
+                                    {candidate.source && (
+                                        <div className="metadata-item">
+                                            📢 Source: {candidate.source}
+                                        </div>
+                                    )}
+                                    {candidate.gender && (
+                                        <div className="metadata-item">
+                                            👥 {candidate.gender}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div style={{display: 'flex', gap: '8px', marginTop: '15px'}}>
+                                    <button 
+                                        className="action-btn primary"
+                                        onClick={() => viewCandidateDetails(candidate)}
+                                        style={{flex: 1}}
+                                    >
+                                        👁️ View Details
+                                    </button>
+                                    <button 
+                                        className="action-btn success"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            // Future: Open interview scheduling
+                                        }}
+                                        style={{flex: 1}}
+                                    >
+                                        📅 Schedule
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {filteredCandidates.length === 0 && (
+                        <div style={{
+                            textAlign: 'center', 
+                            padding: '80px 20px', 
+                            color: '#94a3b8',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            borderRadius: '24px',
+                            border: '2px dashed rgba(255, 255, 255, 0.1)'
+                        }}>
+                            <div style={{fontSize: '64px', marginBottom: '20px'}}>🔍</div>
+                            <h3 style={{marginBottom: '10px', color: '#cbd5e1'}}>
+                                {searchTerm || statusFilter !== 'all' || tagFilter !== 'all' ? 
+                                    'No candidates match your filters' : 
+                                    'No candidates yet'
+                                }
+                            </h3>
+                            <p style={{marginBottom: '20px'}}>
+                                {searchTerm || statusFilter !== 'all' || tagFilter !== 'all' ? 
+                                    'Try adjusting your search criteria or filters.' : 
+                                    'Start building your talent pipeline by adding your first candidate.'
+                                }
+                            </p>
+                            {!(searchTerm || statusFilter !== 'all' || tagFilter !== 'all') && (
+                                <button className="btn-primary" onClick={() => setShowAddModal(true)}>
+                                    Add Your First Candidate
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+
             // Login screen
             if (!currentUser) {
                 console.log('Rendering login screen');
@@ -1453,55 +2143,54 @@
             // Main application
             console.log('Rendering main application, currentUser:', currentUser);
             
-            try {
-                // Enhanced search function with comment searching
-                const searchInComments = useCallback((candidate, searchTerm) => {
-                    if (!candidate.timeline || !searchTerm) return false;
-                    return candidate.timeline.some(entry => 
-                        entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        entry.action.toLowerCase().includes(searchTerm.toLowerCase())
-                    );
-                }, []);
+            // Enhanced search function with comment searching
+            const searchInComments = useCallback((candidate, searchTerm) => {
+                if (!candidate.timeline || !searchTerm) return false;
+                return candidate.timeline.some(entry => 
+                    entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    entry.action.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+            }, []);
 
-                const filteredCandidates = candidates.filter(candidate => {
-                    const searchLower = searchTerm.toLowerCase();
-                    const matchesSearch = searchTerm === '' || 
-                        candidate.name.toLowerCase().includes(searchLower) ||
-                        candidate.job_title.toLowerCase().includes(searchLower) ||
-                        candidate.company.toLowerCase().includes(searchLower) ||
-                        (candidate.location && candidate.location.toLowerCase().includes(searchLower)) ||
-                        (candidate.notes && candidate.notes.toLowerCase().includes(searchLower)) ||
-                        (candidate.source && candidate.source.toLowerCase().includes(searchLower)) ||
-                        (candidate.tags && candidate.tags.some(tag => 
-                            tag.toLowerCase().includes(searchLower)
-                        )) ||
-                        searchInComments(candidate, searchTerm);
-                    
-                    const matchesStatus = statusFilter === 'all' || candidate.status === statusFilter;
-                    const matchesTag = tagFilter === 'all' || 
-                        (candidate.tags && candidate.tags.includes(tagFilter));
-                    
-                    return matchesSearch && matchesStatus && matchesTag;
-                });
+            const filteredCandidates = candidates.filter(candidate => {
+                const searchLower = searchTerm.toLowerCase();
+                const matchesSearch = searchTerm === '' || 
+                    candidate.name.toLowerCase().includes(searchLower) ||
+                    candidate.job_title.toLowerCase().includes(searchLower) ||
+                    candidate.company.toLowerCase().includes(searchLower) ||
+                    (candidate.location && candidate.location.toLowerCase().includes(searchLower)) ||
+                    (candidate.notes && candidate.notes.toLowerCase().includes(searchLower)) ||
+                    (candidate.source && candidate.source.toLowerCase().includes(searchLower)) ||
+                    (candidate.tags && candidate.tags.some(tag => 
+                        tag.toLowerCase().includes(searchLower)
+                    )) ||
+                    searchInComments(candidate, searchTerm);
+                
+                const matchesStatus = statusFilter === 'all' || candidate.status === statusFilter;
+                const matchesTag = tagFilter === 'all' || 
+                    (candidate.tags && candidate.tags.includes(tagFilter));
+                
+                return matchesSearch && matchesStatus && matchesTag;
+            });
 
-                const stats = {
-                    total: candidates.length,
-                    interviewing: candidates.filter(c => c.status === 'interviewing').length,
-                    diversity: candidates.filter(c => c.gender === 'Female' || c.gender === 'Non-binary' || c.gender === 'Other').length,
-                    hired: candidates.filter(c => c.status === 'hired').length,
-                    avgScore: candidates.length > 0 ? 
-                        (candidates.reduce((sum, c) => sum + (c.score || 0), 0) / candidates.length).toFixed(1) : 0,
-                    newThisWeek: candidates.filter(c => {
-                        const weekAgo = new Date();
-                        weekAgo.setDate(weekAgo.getDate() - 7);
-                        return new Date(c.created_at) > weekAgo;
-                    }).length
-                };
+            const stats = {
+                total: candidates.length,
+                interviewing: candidates.filter(c => c.status === 'interviewing').length,
+                diversity: candidates.filter(c => c.gender === 'Female' || c.gender === 'Non-binary' || c.gender === 'Other').length,
+                hired: candidates.filter(c => c.status === 'hired').length,
+                avgScore: candidates.length > 0 ? 
+                    (candidates.reduce((sum, c) => sum + (c.score || 0), 0) / candidates.length).toFixed(1) : 0,
+                newThisWeek: candidates.filter(c => {
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    return new Date(c.created_at) > weekAgo;
+                }).length
+            };
 
-                const allTags = [...new Set(candidates.flatMap(c => c.tags || []))];
+            const allTags = [...new Set(candidates.flatMap(c => c.tags || []))];
 
-                console.log('Stats calculated:', stats);
-                console.log('Filtered candidates:', filteredCandidates.length);
+            console.log('Stats calculated:', stats);
+            console.log('Filtered candidates:', filteredCandidates.length);
 
             // Update functions
             const updateScore = async (candidateId, newScore) => {
@@ -2706,123 +3395,95 @@
                 </div>
             );
 
-                return (
-                    <div className={`main-app ${showSplitPanel ? 'split-view' : ''}`}>
-                        <header className="header">
-                            <h1 className="header-title">
-                                RecruitPro CRM
-                                {dbConnected ? 
-                                    <span style={{fontSize: '12px', color: '#10b981', marginLeft: '10px'}}>● Database Connected</span> :
-                                    <span style={{fontSize: '12px', color: '#f59e0b', marginLeft: '10px'}}>● Local Mode</span>
-                                }
-                            </h1>
-                            
-                            <div className="user-info">
-                                <span>{currentUser.name}</span>
-                                <span style={{fontSize: '12px', color: '#94a3b8'}}>
-                                    Last login: {loginSessions.length > 1 ? formatTimeAgo(loginSessions[1]?.loginTime) : 'First time'}
-                                </span>
-                                <button className="logout-btn" onClick={handleLogout}>
-                                    Sign Out
-                                </button>
+            return (
+                <div className={`main-app ${showSplitPanel ? 'split-view' : ''}`}>
+                    <header className="header">
+                        <h1 className="header-title">
+                            RecruitPro CRM
+                            {dbConnected ? 
+                                <span style={{fontSize: '12px', color: '#10b981', marginLeft: '10px'}}>● Database Connected</span> :
+                                <span style={{fontSize: '12px', color: '#f59e0b', marginLeft: '10px'}}>● Local Mode</span>
+                            }
+                        </h1>
+                        
+                        <div className="user-info">
+                            <span>{currentUser.name}</span>
+                            <span style={{fontSize: '12px', color: '#94a3b8'}}>
+                                Last login: {loginSessions.length > 1 ? formatTimeAgo(loginSessions[1]?.loginTime) : 'First time'}
+                            </span>
+                            <button className="logout-btn" onClick={handleLogout}>
+                                Sign Out
+                            </button>
+                        </div>
+                    </header>
+
+                    <nav className="nav-tabs">
+                        <button 
+                            className={`nav-tab ${activeTab === 'candidates' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('candidates')}
+                        >
+                            📋 Candidates
+                        </button>
+                        <button 
+                            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('analytics')}
+                        >
+                            📊 Analytics
+                        </button>
+                        <button 
+                            className={`nav-tab ${activeTab === 'interviews' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('interviews')}
+                        >
+                            🎤 Interviews
+                        </button>
+                        <button 
+                            className={`nav-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('pipeline')}
+                        >
+                            📁 Projects
+                        </button>
+                    </nav>
+
+                    <div className="dashboard">
+                        {loading ? (
+                            <div style={{textAlign: 'center', padding: '50px'}}>
+                                <div style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    border: '4px solid rgba(139, 92, 246, 0.3)',
+                                    borderTop: '4px solid #8b5cf6',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite',
+                                    margin: '0 auto 20px'
+                                }}></div>
+                                <p style={{color: '#94a3b8'}}>Loading candidates...</p>
                             </div>
-                        </header>
-
-                        <nav className="nav-tabs">
-                            <button 
-                                className={`nav-tab ${activeTab === 'candidates' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('candidates')}
-                            >
-                                📋 Candidates
-                            </button>
-                            <button 
-                                className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('analytics')}
-                            >
-                                📊 Analytics
-                            </button>
-                            <button 
-                                className={`nav-tab ${activeTab === 'interviews' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('interviews')}
-                            >
-                                🎤 Interviews
-                            </button>
-                            <button 
-                                className={`nav-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('pipeline')}
-                            >
-                                📁 Projects
-                            </button>
-                        </nav>
-
-                        <div className="dashboard">
-                            {loading ? (
-                                <div style={{textAlign: 'center', padding: '50px'}}>
-                                    <div style={{
-                                        width: '40px',
-                                        height: '40px',
-                                        border: '4px solid rgba(139, 92, 246, 0.3)',
-                                        borderTop: '4px solid #8b5cf6',
-                                        borderRadius: '50%',
-                                        animation: 'spin 1s linear infinite',
-                                        margin: '0 auto 20px'
-                                    }}></div>
-                                    <p style={{color: '#94a3b8'}}>Loading candidates...</p>
-                                </div>
-                            ) : (
-                                <>
-                                    {activeTab === 'candidates' && <CandidatesView filteredCandidates={filteredCandidates} stats={stats} allTags={allTags} />}
-                                    {activeTab === 'analytics' && <AnalyticsDashboard />}
-                                    {activeTab === 'interviews' && <InterviewsView />}
-                                    {activeTab === 'pipeline' && <PipelineView />}
-                                </>
-                            )}
-                        </div>
-
-                        {showAddModal && <AddCandidateModal />}
-                        <SplitPanel />
+                        ) : (
+                            <>
+                                {activeTab === 'candidates' && <CandidatesView filteredCandidates={filteredCandidates} stats={stats} allTags={allTags} />}
+                                {activeTab === 'analytics' && <AnalyticsDashboard />}
+                                {activeTab === 'interviews' && <InterviewsView />}
+                                {activeTab === 'pipeline' && <PipelineView />}
+                            </>
+                        )}
                     </div>
-                );
-            } catch (error) {
-                console.error('Error rendering main app:', error);
-                return (
-                    <div style={{
-                        minHeight: '100vh',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3a 50%, #2d1b69 100%)',
-                        color: '#e2e8f0',
-                        textAlign: 'center',
-                        padding: '20px'
-                    }}>
-                        <div>
-                            <h2 style={{marginBottom: '20px', color: '#ef4444'}}>Application Error</h2>
-                            <p style={{marginBottom: '20px'}}>Something went wrong. Please refresh the page.</p>
-                            <button 
-                                onClick={() => window.location.reload()}
-                                style={{
-                                    background: '#8b5cf6',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '12px 24px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Refresh Page
-                            </button>
-                        </div>
-                    </div>
-                );
-            }
+
+                    {showAddModal && <AddCandidateModal />}
+                    <SplitPanel />
+                </div>
+            );
 
         };
 
         // Mount the app
-        console.log('Mounting React app...');
-        ReactDOM.render(React.createElement(RecruitPro), document.getElementById('root'));
-        console.log('React app mounted!');
+        console.log('Starting React app mount...');
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+            ReactDOM.render(React.createElement(RecruitPro), rootElement);
+            console.log('React app mounted successfully!');
+        } else {
+            console.error('Root element not found!');
+        }
     </script>
 </body>
 </html>
