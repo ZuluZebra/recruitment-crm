@@ -1070,6 +1070,8 @@
             const [dbConnected, setDbConnected] = useState(false);
             const [activeTab, setActiveTab] = useState('candidates');
             const [loginSessions, setLoginSessions] = useState([]);
+            const [projects, setProjects] = useState([]);
+            const [showProjectModal, setShowProjectModal] = useState(false);
             
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
@@ -1128,6 +1130,10 @@
                 const sessions = loadFromLocal('recruitpro_login_sessions') || [];
                 setLoginSessions(sessions);
                 
+                // Load projects
+                const localProjects = loadFromLocal('recruitpro_projects') || [];
+                setProjects(localProjects);
+                
                 // First try to load from localStorage
                 const localCandidates = loadFromLocal('recruitpro_candidates');
                 if (localCandidates && localCandidates.length > 0) {
@@ -1176,6 +1182,7 @@
                                 location: 'San Francisco, CA',
                                 linkedin_url: 'https://linkedin.com/in/sarahchen',
                                 tags: ['Senior', 'JavaScript', 'React', 'Remote'],
+                                project_id: null,
                                 created_at: '2025-05-30T10:00:00Z',
                                 created_by: 'Chris van der Merwe',
                                 timeline: [
@@ -1202,6 +1209,7 @@
                                 location: 'New York, NY',
                                 linkedin_url: 'https://linkedin.com/in/marcusjohnson',
                                 tags: ['Senior', 'Management', 'High Priority'],
+                                project_id: null,
                                 created_at: '2025-05-29T09:15:00Z',
                                 created_by: 'Chris van der Merwe',
                                 timeline: [
@@ -1219,6 +1227,34 @@
                         setCandidates(demoData);
                         saveToLocal('recruitpro_candidates', demoData);
                         console.log('Using demo data');
+                    }
+                    
+                    // If no projects data, create demo projects
+                    if (localProjects.length === 0) {
+                        const demoProjects = [
+                            {
+                                id: 1,
+                                name: 'Frontend Team Expansion',
+                                description: 'Hiring React developers for Q2 expansion',
+                                status: 'active',
+                                created_by: 'Chris van der Merwe',
+                                created_at: '2025-05-25T09:00:00Z',
+                                target_hires: 3,
+                                deadline: '2025-07-01'
+                            },
+                            {
+                                id: 2,
+                                name: 'Senior Leadership Roles',
+                                description: 'C-level and director positions',
+                                status: 'active',
+                                created_by: 'Chris van der Merwe',
+                                created_at: '2025-05-20T14:30:00Z',
+                                target_hires: 2,
+                                deadline: '2025-08-15'
+                            }
+                        ];
+                        setProjects(demoProjects);
+                        saveToLocal('recruitpro_projects', demoProjects);
                     }
                 }
                 
@@ -1299,7 +1335,7 @@
                             <input
                                 type="password"
                                 className="password-input"
-                                placeholder="Enter password (NextGen)"
+                                placeholder="Enter password"
                                 value={loginPassword}
                                 onChange={(e) => setLoginPassword(e.target.value)}
                                 onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
@@ -1446,6 +1482,50 @@
 
                 if (dbConnected) {
                     await supabase.update('candidates', { tags: newTags }, `id=eq.${candidateId}`);
+                }
+                
+                // Update selected candidate if it's the same one
+                if (selectedCandidate && selectedCandidate.id === candidateId) {
+                    setSelectedCandidate(updated);
+                }
+            };
+
+            // Project Management Functions
+            const createProject = async (projectData) => {
+                const newProject = {
+                    ...projectData,
+                    id: Date.now(),
+                    created_by: currentUser.name,
+                    created_at: new Date().toISOString(),
+                    status: 'active'
+                };
+
+                const newProjects = [newProject, ...projects];
+                setProjects(newProjects);
+                saveToLocal('recruitpro_projects', newProjects);
+
+                if (dbConnected) {
+                    await supabase.insert('projects', newProject);
+                }
+            };
+
+            const assignCandidateToProject = async (candidateId, projectId) => {
+                const updatedCandidate = candidates.find(c => c.id === candidateId);
+                if (!updatedCandidate) return;
+
+                const project = projects.find(p => p.id === projectId);
+                const projectName = project ? project.name : 'None';
+
+                const updated = { ...updatedCandidate, project_id: projectId };
+                const newCandidates = candidates.map(c => c.id === candidateId ? updated : c);
+                setCandidates(newCandidates);
+                saveToLocal('recruitpro_candidates', newCandidates);
+
+                // Add timeline entry
+                addTimelineEntry(candidateId, 'Project Assignment', `Assigned to project: ${projectName}`, 'update');
+
+                if (dbConnected) {
+                    await supabase.update('candidates', { project_id: projectId }, `id=eq.${candidateId}`);
                 }
                 
                 // Update selected candidate if it's the same one
@@ -1620,7 +1700,8 @@
                     location: '',
                     linkedin_url: '',
                     notes: '',
-                    tags: []
+                    tags: [],
+                    project_id: null
                 });
 
                 const [newTag, setNewTag] = useState('');
@@ -1684,7 +1765,7 @@
                     setShowAddModal(false);
                     setFormData({
                         name: '', email: '', job_title: '', company: '', 
-                        phone: '', location: '', linkedin_url: '', notes: '', tags: []
+                        phone: '', location: '', linkedin_url: '', notes: '', tags: [], project_id: null
                     });
                     setNewTag('');
                 };
@@ -1736,6 +1817,22 @@
                                         value={formData.company}
                                         onChange={(e) => setFormData({...formData, company: e.target.value})}
                                     />
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Assign to Project</label>
+                                    <select
+                                        className="form-input"
+                                        value={formData.project_id || ''}
+                                        onChange={(e) => setFormData({...formData, project_id: e.target.value ? parseInt(e.target.value) : null})}
+                                    >
+                                        <option value="">No Project</option>
+                                        {projects.map(project => (
+                                            <option key={project.id} value={project.id}>
+                                                {project.name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                                 
                                 <div className="form-group">
@@ -1838,6 +1935,90 @@
                                     </button>
                                     <button type="submit" className="btn-primary">
                                         Add Candidate
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            };
+
+            // Create Project Modal
+            const CreateProjectModal = () => {
+                const [formData, setFormData] = useState({
+                    name: '',
+                    description: '',
+                    target_hires: 1,
+                    deadline: ''
+                });
+
+                const handleSubmit = async (e) => {
+                    e.preventDefault();
+                    await createProject(formData);
+                    setShowProjectModal(false);
+                    setFormData({
+                        name: '',
+                        description: '',
+                        target_hires: 1,
+                        deadline: ''
+                    });
+                };
+
+                return (
+                    <div className="modal">
+                        <div className="modal-content">
+                            <h2 style={{marginBottom: '20px'}}>Create New Project</h2>
+                            
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-group">
+                                    <label className="form-label">Project Name *</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        required
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        placeholder="e.g., Frontend Team Expansion Q2"
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Description</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                        placeholder="Describe the hiring goals and requirements..."
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Target Hires</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        min="1"
+                                        value={formData.target_hires}
+                                        onChange={(e) => setFormData({...formData, target_hires: parseInt(e.target.value) || 1})}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label className="form-label">Target Deadline</label>
+                                    <input
+                                        type="date"
+                                        className="form-input"
+                                        value={formData.deadline}
+                                        onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                                    />
+                                </div>
+                                
+                                <div className="form-buttons">
+                                    <button type="button" className="btn-secondary" onClick={() => setShowProjectModal(false)}>
+                                        Cancel
+                                    </button>
+                                    <button type="submit" className="btn-primary">
+                                        Create Project
                                     </button>
                                 </div>
                             </form>
@@ -2011,6 +2192,23 @@
                                             ) : 'Not provided'}
                                         </div>
                                     )}
+                                </div>
+
+                                <div className="detail-item">
+                                    <div className="detail-label">Project Assignment</div>
+                                    <select
+                                        value={selectedCandidate.project_id || ''}
+                                        onChange={(e) => assignCandidateToProject(selectedCandidate.id, e.target.value ? parseInt(e.target.value) : null)}
+                                        className="form-input"
+                                        style={{fontSize: '14px', padding: '8px'}}
+                                    >
+                                        <option value="">No Project</option>
+                                        {projects.map(project => (
+                                            <option key={project.id} value={project.id}>
+                                                {project.name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
@@ -2288,6 +2486,11 @@
                                     <div className="metadata-item">
                                         Score: {candidate.score || 0}/10
                                     </div>
+                                    {candidate.project_id && (
+                                        <div className="metadata-item">
+                                            Project: {projects.find(p => p.id === candidate.project_id)?.name || 'Unknown'}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="score-section">
@@ -2377,7 +2580,7 @@
                             className={`nav-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
                             onClick={() => setActiveTab('pipeline')}
                         >
-                            🔄 Pipeline
+                            📁 Projects
                         </button>
                     </nav>
 
@@ -2397,205 +2600,339 @@
 
                     {showAddModal && <AddCandidateModal />}
                     {showDetailModal && <CandidateDetailModal />}
+                    {showProjectModal && <CreateProjectModal />}
                 </div>
             );
 
-            // Pipeline View Component
+            // Pipeline View Component - Project-based
             const PipelineView = () => {
-                const pipelineData = statuses.map(status => ({
-                    ...status,
-                    candidates: candidates.filter(c => c.status === status.value),
-                    count: candidates.filter(c => c.status === status.value).length
-                }));
-
                 return (
                     <div>
-                        <div style={{marginBottom: '30px'}}>
-                            <h2 style={{marginBottom: '10px', color: '#2d3748'}}>Recruitment Pipeline</h2>
-                            <p style={{color: '#718096'}}>Drag and drop candidates between stages</p>
+                        <div style={{
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            marginBottom: '30px'
+                        }}>
+                            <div>
+                                <h2 style={{marginBottom: '10px', color: '#2d3748'}}>Project Management</h2>
+                                <p style={{color: '#718096'}}>Organize candidates by hiring projects and initiatives</p>
+                            </div>
+                            <button 
+                                className="add-button"
+                                onClick={() => setShowProjectModal(true)}
+                            >
+                                ➕ Create Project
+                            </button>
                         </div>
 
+                        {/* Project Statistics */}
+                        <div className="stats-grid">
+                            <div className="stat-card">
+                                <div className="stat-number">{projects.length}</div>
+                                <div className="stat-label">Active Projects</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{candidates.filter(c => c.project_id).length}</div>
+                                <div className="stat-label">Assigned Candidates</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{candidates.filter(c => !c.project_id).length}</div>
+                                <div className="stat-label">Unassigned</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{projects.reduce((sum, p) => sum + (p.target_hires || 0), 0)}</div>
+                                <div className="stat-label">Total Target Hires</div>
+                            </div>
+                        </div>
+
+                        {/* Projects Grid */}
                         <div style={{
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                            gap: '20px',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+                            gap: '25px',
                             marginBottom: '40px'
                         }}>
-                            {pipelineData.map(stage => (
-                                <div key={stage.value} style={{
-                                    background: 'rgba(255, 255, 255, 0.95)',
-                                    backdropFilter: 'blur(20px)',
-                                    borderRadius: '16px',
-                                    padding: '20px',
-                                    border: '1px solid rgba(255, 255, 255, 0.6)',
-                                    boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-                                    minHeight: '400px'
-                                }}>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        marginBottom: '20px',
-                                        paddingBottom: '15px',
-                                        borderBottom: '2px solid #e2e8f0'
+                            {projects.map(project => {
+                                const projectCandidates = candidates.filter(c => c.project_id === project.id);
+                                const hiredCount = projectCandidates.filter(c => c.status === 'hired').length;
+                                const offerCount = projectCandidates.filter(c => c.status === 'offer').length;
+                                const progress = project.target_hires > 0 ? 
+                                    Math.round((hiredCount / project.target_hires) * 100) : 0;
+
+                                return (
+                                    <div key={project.id} style={{
+                                        background: 'rgba(255, 255, 255, 0.95)',
+                                        backdropFilter: 'blur(20px)',
+                                        borderRadius: '20px',
+                                        padding: '25px',
+                                        border: '1px solid rgba(255, 255, 255, 0.6)',
+                                        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                                        transition: 'all 0.3s ease',
+                                        position: 'relative',
+                                        overflow: 'hidden'
                                     }}>
-                                        <h3 style={{color: '#2d3748', fontWeight: '700'}}>{stage.label}</h3>
-                                        <span className={`status-badge status-${stage.value}`} style={{fontSize: '12px'}}>
-                                            {stage.count}
-                                        </span>
-                                    </div>
-                                    
-                                    <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
-                                        {stage.candidates.map(candidate => (
-                                            <div key={candidate.id} style={{
-                                                background: 'rgba(102, 126, 234, 0.05)',
-                                                border: '1px solid rgba(102, 126, 234, 0.1)',
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: '4px',
+                                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                        }} />
+                                        
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'flex-start',
+                                            marginBottom: '20px'
+                                        }}>
+                                            <h3 style={{
+                                                color: '#2d3748',
+                                                fontWeight: '700',
+                                                fontSize: '18px',
+                                                flex: 1,
+                                                marginRight: '15px'
+                                            }}>
+                                                {project.name}
+                                            </h3>
+                                            <div style={{
+                                                background: progress >= 100 ? 
+                                                    'linear-gradient(135deg, #48bb78 0%, #38a169 100%)' :
+                                                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                color: 'white',
+                                                padding: '6px 12px',
                                                 borderRadius: '12px',
-                                                padding: '15px',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.3s ease'
-                                            }}
-                                            onClick={() => viewCandidateDetails(candidate)}
-                                            onMouseEnter={(e) => {
-                                                e.target.style.transform = 'translateY(-2px)';
-                                                e.target.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.2)';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.target.style.transform = 'translateY(0)';
-                                                e.target.style.boxShadow = 'none';
+                                                fontSize: '12px',
+                                                fontWeight: '600'
+                                            }}>
+                                                {progress}%
+                                            </div>
+                                        </div>
+
+                                        <p style={{
+                                            color: '#4a5568',
+                                            fontSize: '14px',
+                                            marginBottom: '20px',
+                                            lineHeight: '1.5'
+                                        }}>
+                                            {project.description}
+                                        </p>
+
+                                        <div style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '1fr 1fr',
+                                            gap: '15px',
+                                            marginBottom: '20px'
+                                        }}>
+                                            <div style={{
+                                                background: 'rgba(102, 126, 234, 0.05)',
+                                                padding: '12px',
+                                                borderRadius: '12px',
+                                                textAlign: 'center'
                                             }}>
                                                 <div style={{
+                                                    fontSize: '20px',
+                                                    fontWeight: '700',
+                                                    color: '#667eea'
+                                                }}>
+                                                    {projectCandidates.length}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '11px',
+                                                    color: '#718096',
+                                                    textTransform: 'uppercase',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    Candidates
+                                                </div>
+                                            </div>
+                                            <div style={{
+                                                background: 'rgba(72, 187, 120, 0.05)',
+                                                padding: '12px',
+                                                borderRadius: '12px',
+                                                textAlign: 'center'
+                                            }}>
+                                                <div style={{
+                                                    fontSize: '20px',
+                                                    fontWeight: '700',
+                                                    color: '#48bb78'
+                                                }}>
+                                                    {hiredCount}/{project.target_hires}
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '11px',
+                                                    color: '#718096',
+                                                    textTransform: 'uppercase',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    Hired
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {project.deadline && (
+                                            <div style={{
+                                                fontSize: '12px',
+                                                color: '#718096',
+                                                marginBottom: '15px'
+                                            }}>
+                                                Deadline: {new Date(project.deadline).toLocaleDateString()}
+                                            </div>
+                                        )}
+
+                                        <div style={{
+                                            maxHeight: '200px',
+                                            overflowY: 'auto'
+                                        }}>
+                                            {projectCandidates.length > 0 ? (
+                                                projectCandidates.map(candidate => (
+                                                    <div key={candidate.id} style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        padding: '8px 12px',
+                                                        margin: '5px 0',
+                                                        background: 'rgba(102, 126, 234, 0.05)',
+                                                        borderRadius: '8px',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                    onClick={() => viewCandidateDetails(candidate)}
+                                                    onMouseEnter={(e) => {
+                                                        e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.target.style.background = 'rgba(102, 126, 234, 0.05)';
+                                                    }}>
+                                                        <div>
+                                                            <div style={{
+                                                                fontWeight: '600',
+                                                                fontSize: '13px',
+                                                                color: '#2d3748'
+                                                            }}>
+                                                                {candidate.name}
+                                                            </div>
+                                                            <div style={{
+                                                                fontSize: '11px',
+                                                                color: '#718096'
+                                                            }}>
+                                                                {candidate.job_title}
+                                                            </div>
+                                                        </div>
+                                                        <div className={`status-badge status-${candidate.status}`} style={{
+                                                            fontSize: '10px',
+                                                            padding: '4px 8px'
+                                                        }}>
+                                                            {statuses.find(s => s.value === candidate.status)?.label || candidate.status}
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div style={{
+                                                    textAlign: 'center',
+                                                    color: '#a0aec0',
+                                                    fontStyle: 'italic',
+                                                    padding: '20px',
+                                                    border: '2px dashed #e2e8f0',
+                                                    borderRadius: '8px',
+                                                    fontSize: '13px'
+                                                }}>
+                                                    No candidates assigned yet
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Unassigned Candidates */}
+                        {candidates.filter(c => !c.project_id).length > 0 && (
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.95)',
+                                backdropFilter: 'blur(20px)',
+                                borderRadius: '20px',
+                                padding: '25px',
+                                border: '1px solid rgba(255, 255, 255, 0.6)',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+                            }}>
+                                <h3 style={{
+                                    color: '#2d3748',
+                                    fontWeight: '700',
+                                    marginBottom: '20px'
+                                }}>
+                                    Unassigned Candidates ({candidates.filter(c => !c.project_id).length})
+                                </h3>
+                                
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                    gap: '15px'
+                                }}>
+                                    {candidates.filter(c => !c.project_id).map(candidate => (
+                                        <div key={candidate.id} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '12px 15px',
+                                            background: 'rgba(255, 193, 7, 0.1)',
+                                            border: '1px solid rgba(255, 193, 7, 0.2)',
+                                            borderRadius: '12px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                        onClick={() => viewCandidateDetails(candidate)}
+                                        onMouseEnter={(e) => {
+                                            e.target.style.background = 'rgba(255, 193, 7, 0.15)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.target.style.background = 'rgba(255, 193, 7, 0.1)';
+                                        }}>
+                                            <div>
+                                                <div style={{
                                                     fontWeight: '600',
-                                                    color: '#2d3748',
-                                                    marginBottom: '5px',
-                                                    fontSize: '14px'
+                                                    fontSize: '14px',
+                                                    color: '#2d3748'
                                                 }}>
                                                     {candidate.name}
                                                 </div>
                                                 <div style={{
-                                                    color: '#4a5568',
                                                     fontSize: '12px',
-                                                    marginBottom: '8px'
+                                                    color: '#718096'
                                                 }}>
                                                     {candidate.job_title} at {candidate.company}
                                                 </div>
-                                                <div style={{
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center'
-                                                }}>
-                                                    <div style={{
-                                                        fontSize: '11px',
-                                                        color: '#667eea'
-                                                    }}>
-                                                        Score: {candidate.score || 0}/10
-                                                    </div>
-                                                    <div style={{
-                                                        fontSize: '10px',
-                                                        color: '#718096'
-                                                    }}>
-                                                        {formatTimeAgo(candidate.created_at)}
-                                                    </div>
-                                                </div>
-                                                {candidate.tags && candidate.tags.length > 0 && (
-                                                    <div style={{
-                                                        display: 'flex',
-                                                        flexWrap: 'wrap',
-                                                        gap: '4px',
-                                                        marginTop: '8px'
-                                                    }}>
-                                                        {candidate.tags.slice(0, 2).map(tag => (
-                                                            <span key={tag} style={{
-                                                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                                                color: 'white',
-                                                                padding: '2px 6px',
-                                                                borderRadius: '8px',
-                                                                fontSize: '9px',
-                                                                fontWeight: '600'
-                                                            }}>
-                                                                {tag}
-                                                            </span>
-                                                        ))}
-                                                        {candidate.tags.length > 2 && (
-                                                            <span style={{
-                                                                color: '#667eea',
-                                                                fontSize: '9px',
-                                                                fontWeight: '600'
-                                                            }}>
-                                                                +{candidate.tags.length - 2}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
                                             </div>
-                                        ))}
-                                        
-                                        {stage.candidates.length === 0 && (
-                                            <div style={{
-                                                textAlign: 'center',
-                                                color: '#a0aec0',
-                                                fontStyle: 'italic',
-                                                padding: '40px 20px',
-                                                border: '2px dashed #e2e8f0',
-                                                borderRadius: '12px'
+                                            <div className={`status-badge status-${candidate.status}`} style={{
+                                                fontSize: '10px',
+                                                padding: '4px 8px'
                                             }}>
-                                                No candidates in {stage.label.toLowerCase()}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Pipeline Statistics */}
-                        <div style={{
-                            background: 'rgba(255, 255, 255, 0.95)',
-                            backdropFilter: 'blur(20px)',
-                            borderRadius: '16px',
-                            padding: '30px',
-                            border: '1px solid rgba(255, 255, 255, 0.6)',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
-                        }}>
-                            <h3 style={{marginBottom: '20px', color: '#2d3748'}}>Pipeline Conversion Rates</h3>
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                gap: '20px'
-                            }}>
-                                {statuses.slice(0, -1).map((status, index) => {
-                                    const currentCount = candidates.filter(c => c.status === status.value).length;
-                                    const nextStatus = statuses[index + 1];
-                                    const nextCount = candidates.filter(c => c.status === nextStatus.value).length;
-                                    const conversionRate = currentCount > 0 ? ((nextCount / currentCount) * 100).toFixed(1) : 0;
-                                    
-                                    return (
-                                        <div key={status.value} style={{
-                                            textAlign: 'center',
-                                            padding: '20px',
-                                            background: 'rgba(102, 126, 234, 0.05)',
-                                            borderRadius: '12px',
-                                            border: '1px solid rgba(102, 126, 234, 0.1)'
-                                        }}>
-                                            <div style={{
-                                                fontSize: '24px',
-                                                fontWeight: '800',
-                                                color: '#667eea',
-                                                marginBottom: '5px'
-                                            }}>
-                                                {conversionRate}%
-                                            </div>
-                                            <div style={{
-                                                fontSize: '12px',
-                                                color: '#4a5568',
-                                                fontWeight: '600'
-                                            }}>
-                                                {status.label} → {nextStatus.label}
+                                                {statuses.find(s => s.value === candidate.status)?.label || candidate.status}
                                             </div>
                                         </div>
-                                    );
-                                })}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {projects.length === 0 && (
+                            <div style={{
+                                textAlign: 'center',
+                                padding: '60px 20px',
+                                color: '#718096'
+                            }}>
+                                <div style={{fontSize: '48px', marginBottom: '20px'}}>📁</div>
+                                <h3 style={{marginBottom: '10px', color: '#4a5568'}}>No Projects Yet</h3>
+                                <p style={{marginBottom: '20px'}}>Create your first project to organize candidates by hiring initiatives.</p>
+                                <button 
+                                    className="btn-primary"
+                                    onClick={() => setShowProjectModal(true)}
+                                >
+                                    Create Your First Project
+                                </button>
+                            </div>
+                        )}
                     </div>
                 );
             };
