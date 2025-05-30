@@ -1284,7 +1284,7 @@
             const addTimelineEntry = (candidateId, action, description, type = 'update') => {
                 const timestamp = new Date().toISOString();
                 const timelineEntry = {
-                    id: Date.now(),
+                    id: Date.now() + Math.random(), // Ensure unique ID
                     action,
                     description,
                     user: currentUser.name,
@@ -1292,24 +1292,30 @@
                     type
                 };
 
-                const updatedCandidates = candidates.map(candidate => {
-                    if (candidate.id === candidateId) {
-                        const timeline = candidate.timeline || [];
-                        return {
-                            ...candidate,
-                            timeline: [timelineEntry, ...timeline]
-                        };
-                    }
-                    return candidate;
+                setCandidates(prevCandidates => {
+                    const updatedCandidates = prevCandidates.map(candidate => {
+                        if (candidate.id === candidateId) {
+                            const timeline = candidate.timeline || [];
+                            return {
+                                ...candidate,
+                                timeline: [timelineEntry, ...timeline]
+                            };
+                        }
+                        return candidate;
+                    });
+                    
+                    saveToLocal('recruitpro_candidates', updatedCandidates);
+                    return updatedCandidates;
                 });
-
-                setCandidates(updatedCandidates);
-                saveToLocal('recruitpro_candidates', updatedCandidates);
 
                 // Update selected candidate if it's the same one
                 if (selectedCandidate && selectedCandidate.id === candidateId) {
-                    const updatedCandidate = updatedCandidates.find(c => c.id === candidateId);
-                    setSelectedCandidate(updatedCandidate);
+                    const timeline = selectedCandidate.timeline || [];
+                    const updatedSelected = {
+                        ...selectedCandidate,
+                        timeline: [timelineEntry, ...timeline]
+                    };
+                    setSelectedCandidate(updatedSelected);
                 }
             };
 
@@ -1410,7 +1416,8 @@
                 
                 // Update selected candidate if it's the same one
                 if (selectedCandidate && selectedCandidate.id === candidateId) {
-                    setSelectedCandidate(updated);
+                    const updatedSelected = { ...selectedCandidate, score: newScore };
+                    setSelectedCandidate(updatedSelected);
                 }
             };
 
@@ -1426,7 +1433,8 @@
 
                 // Add timeline entry
                 const statusLabel = statuses.find(s => s.value === newStatus)?.label || newStatus;
-                addTimelineEntry(candidateId, 'Status Changed', `Status changed from ${oldStatus} to ${statusLabel}`, 'status');
+                const oldStatusLabel = statuses.find(s => s.value === oldStatus)?.label || oldStatus;
+                addTimelineEntry(candidateId, 'Status Changed', `Status changed from ${oldStatusLabel} to ${statusLabel}`, 'status');
 
                 if (dbConnected) {
                     await supabase.update('candidates', { status: newStatus }, `id=eq.${candidateId}`);
@@ -1434,7 +1442,8 @@
                 
                 // Update selected candidate if it's the same one
                 if (selectedCandidate && selectedCandidate.id === candidateId) {
-                    setSelectedCandidate(updated);
+                    const updatedSelected = { ...selectedCandidate, status: newStatus };
+                    setSelectedCandidate(updatedSelected);
                 }
             };
 
@@ -1458,7 +1467,8 @@
                 
                 // Update selected candidate if it's the same one
                 if (selectedCandidate && selectedCandidate.id === candidateId) {
-                    setSelectedCandidate(updated);
+                    const updatedSelected = { ...selectedCandidate, [field]: value };
+                    setSelectedCandidate(updatedSelected);
                 }
             };
 
@@ -1486,7 +1496,8 @@
                 
                 // Update selected candidate if it's the same one
                 if (selectedCandidate && selectedCandidate.id === candidateId) {
-                    setSelectedCandidate(updated);
+                    const updatedSelected = { ...selectedCandidate, tags: newTags };
+                    setSelectedCandidate(updatedSelected);
                 }
             };
 
@@ -1530,7 +1541,8 @@
                 
                 // Update selected candidate if it's the same one
                 if (selectedCandidate && selectedCandidate.id === candidateId) {
-                    setSelectedCandidate(updated);
+                    const updatedSelected = { ...selectedCandidate, project_id: projectId };
+                    setSelectedCandidate(updatedSelected);
                 }
             };
 
@@ -2371,239 +2383,6 @@
                 );
             };
 
-            const CandidatesView = () => (
-                <div>
-                    <div className="stats-grid">
-                        <div className="stat-card">
-                            <div className="stat-number">{stats.total}</div>
-                            <div className="stat-label">Total Candidates</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-number">{stats.interviewing}</div>
-                            <div className="stat-label">Interviewing</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-number">{stats.offers}</div>
-                            <div className="stat-label">Offers Extended</div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-number">{stats.hired}</div>
-                            <div className="stat-label">Hired</div>
-                        </div>
-                    </div>
-
-                    <div className="controls-row">
-                        <input
-                            type="text"
-                            className="search-bar"
-                            placeholder="Search candidates by name, title, company, or tags..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        
-                        <select
-                            className="filter-select"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            <option value="all">All Statuses</option>
-                            {statuses.map(status => (
-                                <option key={status.value} value={status.value}>
-                                    {status.label}
-                                </option>
-                            ))}
-                        </select>
-                        
-                        <select
-                            className="filter-select"
-                            value={tagFilter}
-                            onChange={(e) => setTagFilter(e.target.value)}
-                        >
-                            <option value="all">All Tags</option>
-                            {allTags.map(tag => (
-                                <option key={tag} value={tag}>
-                                    {tag}
-                                </option>
-                            ))}
-                        </select>
-
-                        <button className="add-button" onClick={() => setShowAddModal(true)}>
-                            ➕ Add Candidate
-                        </button>
-                    </div>
-
-                    <div className="candidates-grid">
-                        {filteredCandidates.map(candidate => (
-                            <div key={candidate.id} className="candidate-card">
-                                <div className="candidate-header">
-                                    <div className="candidate-info">
-                                        <div 
-                                            className="candidate-name" 
-                                            onClick={() => viewCandidateDetails(candidate)}
-                                            style={{cursor: 'pointer', color: '#667eea'}}
-                                        >
-                                            {candidate.name}
-                                        </div>
-                                        <div className="candidate-title">{candidate.job_title}</div>
-                                        <div className="candidate-company">{candidate.company}</div>
-                                    </div>
-                                    
-                                    <select
-                                        value={candidate.status}
-                                        onChange={(e) => updateStatus(candidate.id, e.target.value)}
-                                        className={`status-badge status-${candidate.status}`}
-                                        style={{border: 'none', cursor: 'pointer'}}
-                                    >
-                                        {statuses.map(status => (
-                                            <option key={status.value} value={status.value}>
-                                                {status.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Tags */}
-                                {candidate.tags && candidate.tags.length > 0 && (
-                                    <div className="tags-container">
-                                        {candidate.tags.slice(0, 3).map(tag => (
-                                            <div key={tag} className="tag" style={{fontSize: '10px', padding: '2px 8px'}}>
-                                                {tag}
-                                            </div>
-                                        ))}
-                                        {candidate.tags.length > 3 && (
-                                            <div className="tag" style={{fontSize: '10px', padding: '2px 8px'}}>
-                                                +{candidate.tags.length - 3} more
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Metadata */}
-                                <div className="candidate-metadata">
-                                    <div className="metadata-item">
-                                        Created: {formatTimeAgo(candidate.created_at)} by {candidate.created_by}
-                                    </div>
-                                    <div className="metadata-item">
-                                        Score: {candidate.score || 0}/10
-                                    </div>
-                                    {candidate.project_id && (
-                                        <div className="metadata-item">
-                                            Project: {projects.find(p => p.id === candidate.project_id)?.name || 'Unknown'}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="score-section">
-                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                                        <span style={{fontSize: '14px', color: '#666'}}>Score</span>
-                                        <span style={{fontSize: '16px', fontWeight: 'bold', color: '#667eea'}}>
-                                            {candidate.score || 0}/10
-                                        </span>
-                                    </div>
-                                    
-                                    <div className="score-bar">
-                                        <div 
-                                            className="score-fill"
-                                            style={{width: `${(candidate.score || 0) * 10}%`}}
-                                        ></div>
-                                    </div>
-                                    
-                                    <div className="score-buttons">
-                                        {[1,2,3,4,5,6,7,8,9,10].map(score => (
-                                            <button
-                                                key={score}
-                                                className={`score-btn ${score <= (candidate.score || 0) ? 'active' : ''}`}
-                                                onClick={() => updateScore(candidate.id, score)}
-                                            >
-                                                {score}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                
-                                <button 
-                                    className="view-details-btn"
-                                    onClick={() => viewCandidateDetails(candidate)}
-                                >
-                                    View Details
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-
-                    {filteredCandidates.length === 0 && (
-                        <div style={{textAlign: 'center', padding: '50px', color: '#666'}}>
-                            {searchTerm || statusFilter !== 'all' || tagFilter !== 'all' ? 
-                                'No candidates match your filters.' : 
-                                'No candidates yet. Add your first candidate!'}
-                        </div>
-                    )}
-                </div>
-            );
-
-            return (
-                <div className="main-app">
-                    <header className="header">
-                        <h1 className="header-title">
-                            RecruitPro CRM
-                            {dbConnected ? 
-                                <span style={{fontSize: '12px', color: 'green', marginLeft: '10px'}}>● Database Connected</span> :
-                                <span style={{fontSize: '12px', color: 'orange', marginLeft: '10px'}}>● Local Mode</span>
-                            }
-                        </h1>
-                        
-                        <div className="user-info">
-                            <span>{currentUser.name}</span>
-                            <span style={{fontSize: '12px', color: '#718096'}}>
-                                Last login: {loginSessions.length > 1 ? formatTimeAgo(loginSessions[1]?.loginTime) : 'First time'}
-                            </span>
-                            <button className="logout-btn" onClick={handleLogout}>
-                                Sign Out
-                            </button>
-                        </div>
-                    </header>
-
-                    <nav className="nav-tabs">
-                        <button 
-                            className={`nav-tab ${activeTab === 'candidates' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('candidates')}
-                        >
-                            📋 Candidates
-                        </button>
-                        <button 
-                            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('analytics')}
-                        >
-                            📊 Analytics
-                        </button>
-                        <button 
-                            className={`nav-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('pipeline')}
-                        >
-                            📁 Projects
-                        </button>
-                    </nav>
-
-                    <div className="dashboard">
-                        {loading ? (
-                            <div style={{textAlign: 'center', padding: '50px'}}>
-                                <p>Loading candidates...</p>
-                            </div>
-                        ) : (
-                            <>
-                                {activeTab === 'candidates' && <CandidatesView />}
-                                {activeTab === 'analytics' && <AnalyticsDashboard />}
-                                {activeTab === 'pipeline' && <PipelineView />}
-                            </>
-                        )}
-                    </div>
-
-                    {showAddModal && <AddCandidateModal />}
-                    {showDetailModal && <CandidateDetailModal />}
-                    {showProjectModal && <CreateProjectModal />}
-                </div>
-            );
-
             // Pipeline View Component - Project-based
             const PipelineView = () => {
                 return (
@@ -2800,10 +2579,10 @@
                                                     }}
                                                     onClick={() => viewCandidateDetails(candidate)}
                                                     onMouseEnter={(e) => {
-                                                        e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+                                                        e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
                                                     }}
                                                     onMouseLeave={(e) => {
-                                                        e.target.style.background = 'rgba(102, 126, 234, 0.05)';
+                                                        e.currentTarget.style.background = 'rgba(102, 126, 234, 0.05)';
                                                     }}>
                                                         <div>
                                                             <div style={{
@@ -2884,10 +2663,10 @@
                                         }}
                                         onClick={() => viewCandidateDetails(candidate)}
                                         onMouseEnter={(e) => {
-                                            e.target.style.background = 'rgba(255, 193, 7, 0.15)';
+                                            e.currentTarget.style.background = 'rgba(255, 193, 7, 0.15)';
                                         }}
                                         onMouseLeave={(e) => {
-                                            e.target.style.background = 'rgba(255, 193, 7, 0.1)';
+                                            e.currentTarget.style.background = 'rgba(255, 193, 7, 0.1)';
                                         }}>
                                             <div>
                                                 <div style={{
@@ -2936,6 +2715,266 @@
                     </div>
                 );
             };
+
+            const CandidatesView = () => (
+                <div>
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.total}</div>
+                            <div className="stat-label">Total Candidates</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.interviewing}</div>
+                            <div className="stat-label">Interviewing</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.offers}</div>
+                            <div className="stat-label">Offers Extended</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-number">{stats.hired}</div>
+                            <div className="stat-label">Hired</div>
+                        </div>
+                    </div>
+
+                    <div className="controls-row">
+                        <input
+                            type="text"
+                            className="search-bar"
+                            placeholder="Search candidates by name, title, company, or tags..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        
+                        <select
+                            className="filter-select"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                            <option value="all">All Statuses</option>
+                            {statuses.map(status => (
+                                <option key={status.value} value={status.value}>
+                                    {status.label}
+                                </option>
+                            ))}
+                        </select>
+                        
+                        <select
+                            className="filter-select"
+                            value={tagFilter}
+                            onChange={(e) => setTagFilter(e.target.value)}
+                        >
+                            <option value="all">All Tags</option>
+                            {allTags.map(tag => (
+                                <option key={tag} value={tag}>
+                                    {tag}
+                                </option>
+                            ))}
+                        </select>
+
+                        <button className="add-button" onClick={() => setShowAddModal(true)}>
+                            ➕ Add Candidate
+                        </button>
+                    </div>
+
+                    <div className="candidates-grid">
+                        {filteredCandidates.map(candidate => (
+                            <div key={candidate.id} className="candidate-card">
+                                <div className="candidate-header">
+                                    <div className="candidate-info">
+                                        <div 
+                                            className="candidate-name" 
+                                            onClick={() => viewCandidateDetails(candidate)}
+                                            style={{cursor: 'pointer', color: '#667eea'}}
+                                        >
+                                            {candidate.name}
+                                        </div>
+                                        <div className="candidate-title">{candidate.job_title}</div>
+                                        <div className="candidate-company">{candidate.company}</div>
+                                    </div>
+                                    
+                                    <select
+                                        value={candidate.status}
+                                        onChange={(e) => updateStatus(candidate.id, e.target.value)}
+                                        className={`status-badge status-${candidate.status}`}
+                                        style={{border: 'none', cursor: 'pointer'}}
+                                    >
+                                        {statuses.map(status => (
+                                            <option key={status.value} value={status.value}>
+                                                {status.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Tags */}
+                                {candidate.tags && candidate.tags.length > 0 && (
+                                    <div className="tags-container">
+                                        {candidate.tags.slice(0, 3).map(tag => (
+                                            <div key={tag} className="tag" style={{fontSize: '10px', padding: '2px 8px'}}>
+                                                {tag}
+                                            </div>
+                                        ))}
+                                        {candidate.tags.length > 3 && (
+                                            <div className="tag" style={{fontSize: '10px', padding: '2px 8px'}}>
+                                                +{candidate.tags.length - 3} more
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Metadata */}
+                                <div className="candidate-metadata">
+                                    <div className="metadata-item">
+                                        Created: {formatTimeAgo(candidate.created_at)} by {candidate.created_by}
+                                    </div>
+                                    <div className="metadata-item">
+                                        Score: {candidate.score || 0}/10
+                                    </div>
+                                    {candidate.project_id && (
+                                        <div className="metadata-item">
+                                            Project: {projects.find(p => p.id === candidate.project_id)?.name || 'Unknown'}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="score-section">
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                                        <span style={{fontSize: '14px', color: '#666'}}>Score</span>
+                                        <span style={{fontSize: '16px', fontWeight: 'bold', color: '#667eea'}}>
+                                            {candidate.score || 0}/10
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="score-bar">
+                                        <div 
+                                            className="score-fill"
+                                            style={{width: `${(candidate.score || 0) * 10}%`}}
+                                        ></div>
+                                    </div>
+                                    
+                                    <div className="score-buttons">
+                                        {[1,2,3,4,5,6,7,8,9,10].map(score => (
+                                            <button
+                                                key={score}
+                                                className={`score-btn ${score <= (candidate.score || 0) ? 'active' : ''}`}
+                                                onClick={() => updateScore(candidate.id, score)}
+                                            >
+                                                {score}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                <button 
+                                    className="view-details-btn"
+                                    onClick={() => viewCandidateDetails(candidate)}
+                                >
+                                    View Details
+                                </button>
+                                
+                                {/* Quick Project Assignment */}
+                                <div style={{marginTop: '10px'}}>
+                                    <select
+                                        value={candidate.project_id || ''}
+                                        onChange={(e) => {
+                                            e.stopPropagation();
+                                            assignCandidateToProject(candidate.id, e.target.value ? parseInt(e.target.value) : null);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '6px 10px',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '8px',
+                                            fontSize: '12px',
+                                            background: 'white'
+                                        }}
+                                    >
+                                        <option value="">🔗 Assign to Project</option>
+                                        {projects.map(project => (
+                                            <option key={project.id} value={project.id}>
+                                                {project.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {filteredCandidates.length === 0 && (
+                        <div style={{textAlign: 'center', padding: '50px', color: '#666'}}>
+                            {searchTerm || statusFilter !== 'all' || tagFilter !== 'all' ? 
+                                'No candidates match your filters.' : 
+                                'No candidates yet. Add your first candidate!'}
+                        </div>
+                    )}
+                </div>
+            );
+
+            return (
+                <div className="main-app">
+                    <header className="header">
+                        <h1 className="header-title">
+                            RecruitPro CRM
+                            {dbConnected ? 
+                                <span style={{fontSize: '12px', color: 'green', marginLeft: '10px'}}>● Database Connected</span> :
+                                <span style={{fontSize: '12px', color: 'orange', marginLeft: '10px'}}>● Local Mode</span>
+                            }
+                        </h1>
+                        
+                        <div className="user-info">
+                            <span>{currentUser.name}</span>
+                            <span style={{fontSize: '12px', color: '#718096'}}>
+                                Last login: {loginSessions.length > 1 ? formatTimeAgo(loginSessions[1]?.loginTime) : 'First time'}
+                            </span>
+                            <button className="logout-btn" onClick={handleLogout}>
+                                Sign Out
+                            </button>
+                        </div>
+                    </header>
+
+                    <nav className="nav-tabs">
+                        <button 
+                            className={`nav-tab ${activeTab === 'candidates' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('candidates')}
+                        >
+                            📋 Candidates
+                        </button>
+                        <button 
+                            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('analytics')}
+                        >
+                            📊 Analytics
+                        </button>
+                        <button 
+                            className={`nav-tab ${activeTab === 'pipeline' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('pipeline')}
+                        >
+                            📁 Projects
+                        </button>
+                    </nav>
+
+                    <div className="dashboard">
+                        {loading ? (
+                            <div style={{textAlign: 'center', padding: '50px'}}>
+                                <p>Loading candidates...</p>
+                            </div>
+                        ) : (
+                            <>
+                                {activeTab === 'candidates' && <CandidatesView />}
+                                {activeTab === 'analytics' && <AnalyticsDashboard />}
+                                {activeTab === 'pipeline' && <PipelineView />}
+                            </>
+                        )}
+                    </div>
+
+                    {showAddModal && <AddCandidateModal />}
+                    {showDetailModal && <CandidateDetailModal />}
+                    {showProjectModal && <CreateProjectModal />}
+                </div>
+            );
+
         };
 
         // Mount the app
