@@ -924,23 +924,8 @@
                 gap: 15px;
             }
             
-            .candidates-grid {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-            
             .candidate-card {
-                padding: 16px;
-            }
-            
-            .candidate-name {
-                font-size: 16px;
-            }
-            
-            .candidate-avatar {
-                width: 35px;
-                height: 35px;
-                font-size: 14px;
+                padding: 20px;
             }
             
             .score-buttons {
@@ -970,38 +955,6 @@
             .nav-tabs {
                 padding: 0 20px;
                 overflow-x: auto;
-            }
-            
-            .candidate-actions {
-                flex-direction: column;
-                gap: 6px;
-            }
-            
-            .action-btn {
-                padding: 10px;
-                font-size: 13px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .candidates-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .candidate-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
-            }
-            
-            .candidate-avatar {
-                align-self: flex-end;
-            }
-            
-            .candidate-meta-row {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
             }
         }
     </style>
@@ -4001,41 +3954,26 @@
                                 assignCandidateToProject(candidate.id, e.target.value ? parseInt(e.target.value) : null);
                             };
                             
-                            // Get candidate initials for avatar
-                            const initials = candidate.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-                            
                             return (
-                                <div key={`candidate-${candidate.id}`} className="candidate-card" onClick={() => viewCandidateDetails(candidate)}>
+                                <div key={`candidate-${candidate.id}`} className="candidate-card">
                                     <div className="candidate-header">
                                         <div className="candidate-info">
-                                            <div className="candidate-name">{candidate.name}</div>
+                                            <div 
+                                                className="candidate-name" 
+                                                onClick={() => viewCandidateDetails(candidate)}
+                                                style={{cursor: 'pointer', color: '#667eea'}}
+                                            >
+                                                {candidate.name}
+                                            </div>
                                             <div className="candidate-title">{candidate.job_title}</div>
                                             <div className="candidate-company">{candidate.company}</div>
-                                        </div>
-                                        <div className="candidate-avatar">{initials}</div>
-                                    </div>
-
-                                    <div className="candidate-meta-row">
-                                        <div className="candidate-score">
-                                            <span className="score-number">{candidate.score || 0}/10</span>
-                                            <div className="score-stars">
-                                                {[1,2,3,4,5].map(star => (
-                                                    <div 
-                                                        key={`${candidate.id}-star-${star}`}
-                                                        className={`score-star ${star <= (candidate.score || 0) / 2 ? 'filled' : ''}`}
-                                                    />
-                                                ))}
-                                            </div>
                                         </div>
                                         
                                         <select
                                             value={candidate.status}
-                                            onChange={(e) => {
-                                                e.stopPropagation();
-                                                updateStatus(candidate.id, e.target.value);
-                                            }}
-                                            className={`status-mini status-${candidate.status}`}
-                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={(e) => updateStatus(candidate.id, e.target.value)}
+                                            className={`status-badge status-${candidate.status}`}
+                                            style={{border: 'none', cursor: 'pointer'}}
                                         >
                                             {statuses.map(status => (
                                                 <option key={status.value} value={status.value}>
@@ -4045,74 +3983,111 @@
                                         </select>
                                     </div>
 
-                                    {/* Compact Tags */}
+                                    {/* Tags */}
                                     {candidate.tags && candidate.tags.length > 0 && (
-                                        <div className="compact-tags">
-                                            {candidate.tags.slice(0, 4).map((tag, index) => (
-                                                <div key={`${candidate.id}-tag-${index}`} className="compact-tag" title={tag}>
+                                        <div className="tags-container">
+                                            {candidate.tags.slice(0, 3).map((tag, index) => (
+                                                <div key={`${candidate.id}-tag-${index}`} className="tag" style={{fontSize: '10px', padding: '2px 8px'}}>
                                                     {tag}
                                                 </div>
                                             ))}
-                                            {candidate.tags.length > 4 && (
-                                                <div className="compact-tag" title={`${candidate.tags.length - 4} more tags`}>
-                                                    +{candidate.tags.length - 4}
+                                            {candidate.tags.length > 3 && (
+                                                <div className="tag" style={{fontSize: '10px', padding: '2px 8px'}}>
+                                                    +{candidate.tags.length - 3} more
                                                 </div>
                                             )}
                                         </div>
                                     )}
 
-                                    {/* Action Buttons */}
-                                    <div className="candidate-actions">
+                                    {/* Metadata */}
+                                    <div className="candidate-metadata">
+                                        <div className="metadata-item">
+                                            Created: {formatTimeAgo(candidate.created_at)} by {candidate.created_by}
+                                        </div>
+                                        <div className="metadata-item">
+                                            Score: {candidate.score || 0}/10
+                                        </div>
+                                        {candidate.project_id && (
+                                            <div className="metadata-item">
+                                                Project: {projects.find(p => p.id === candidate.project_id)?.name || 'Unknown'}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="score-section">
+                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                                            <span style={{fontSize: '14px', color: '#666'}}>Score</span>
+                                            <span style={{fontSize: '16px', fontWeight: 'bold', color: '#667eea'}}>
+                                                {candidate.score || 0}/10
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="score-bar">
+                                            <div 
+                                                className="score-fill"
+                                                style={{width: `${(candidate.score || 0) * 10}%`}}
+                                            ></div>
+                                        </div>
+                                        
+                                        <div className="score-buttons">
+                                            {[1,2,3,4,5,6,7,8,9,10].map(score => (
+                                                <button
+                                                    key={`${candidate.id}-score-${score}`}
+                                                    className={`score-btn ${score <= (candidate.score || 0) ? 'active' : ''}`}
+                                                    onClick={() => updateScore(candidate.id, score)}
+                                                >
+                                                    {score}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Quick Actions */}
+                                    <div style={{display: 'flex', gap: '5px', marginTop: '10px'}}>
                                         <button 
-                                            className="action-btn action-btn-primary"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                viewCandidateDetails(candidate);
-                                            }}
+                                            className="view-details-btn"
+                                            onClick={() => viewCandidateDetails(candidate)}
+                                            style={{flex: 1}}
                                         >
-                                            👁️ View
+                                            View Details
                                         </button>
                                         <button 
-                                            className="action-btn action-btn-secondary"
+                                            className="view-details-btn"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setShowInterviewModal(true);
+                                            }}
+                                            style={{
+                                                flex: 1,
+                                                background: 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)',
+                                                fontSize: '11px'
                                             }}
                                         >
                                             📅 Interview
                                         </button>
                                     </div>
                                     
-                                    {/* Quick Info Footer */}
-                                    <div className="quick-info">
-                                        <span>{formatTimeAgo(candidate.created_at)}</span>
-                                        {candidate.project_id ? (
-                                            <div className="project-chip" title={projects.find(p => p.id === candidate.project_id)?.name}>
-                                                📁 {projects.find(p => p.id === candidate.project_id)?.name || 'Project'}
-                                            </div>
-                                        ) : (
-                                            <select
-                                                value=""
-                                                onChange={handleProjectAssignment}
-                                                onClick={(e) => e.stopPropagation()}
-                                                style={{
-                                                    background: 'none',
-                                                    border: '1px dashed #cbd5e0',
-                                                    borderRadius: '12px',
-                                                    padding: '2px 6px',
-                                                    fontSize: '10px',
-                                                    color: '#718096',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                <option value="">+ Project</option>
-                                                {projects.map(project => (
-                                                    <option key={project.id} value={project.id}>
-                                                        {project.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        )}
+                                    {/* Quick Project Assignment */}
+                                    <div style={{marginTop: '10px'}}>
+                                        <select
+                                            value={candidate.project_id || ''}
+                                            onChange={handleProjectAssignment}
+                                            style={{
+                                                width: '100%',
+                                                padding: '6px 10px',
+                                                border: '1px solid #e2e8f0',
+                                                borderRadius: '8px',
+                                                fontSize: '12px',
+                                                background: 'white'
+                                            }}
+                                        >
+                                            <option value="">🔗 Assign to Project</option>
+                                            {projects.map(project => (
+                                                <option key={project.id} value={project.id}>
+                                                    {project.name}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                             );
