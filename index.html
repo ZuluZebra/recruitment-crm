@@ -101,9 +101,28 @@
     
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        const { Search, Plus, Filter, Users, TrendingUp, Target, Tag, Folder, 
-                Star, Eye, Edit, MessageSquare, Calendar, Award, BarChart3,
-                ChevronDown, X, Settings, LogOut } = lucide;
+        
+        // Simple icon components to avoid lucide issues
+        const SearchIcon = () => React.createElement('svg', { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "m21 21-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" })
+        );
+        
+        const PlusIcon = () => React.createElement('svg', { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 4v16m8-8H4" })
+        );
+        
+        const UsersIcon = () => React.createElement('svg', { className: "w-6 h-6", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a4 4 0 11-8 0 4 4 0 018 0z" })
+        );
+        
+        const EyeIcon = () => React.createElement('svg', { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" }),
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" })
+        );
+        
+        const XIcon = () => React.createElement('svg', { className: "w-6 h-6", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
+            React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M6 18L18 6M6 6l12 12" })
+        );
 
         // Enhanced Supabase configuration
         const CONFIG = {
@@ -165,6 +184,8 @@
         };
 
         const NextGenCRM = () => {
+            console.log('NextGenCRM component initializing...');
+            
             // State management
             const [currentUser, setCurrentUser] = useState(null);
             const [candidates, setCandidates] = useState([]);
@@ -186,8 +207,10 @@
             const [showAnalytics, setShowAnalytics] = useState(false);
             
             // Loading and connection states
-            const [loading, setLoading] = useState(true);
+            const [loading, setLoading] = useState(false);
             const [dbConnected, setDbConnected] = useState(false);
+
+            console.log('State initialized, currentUser:', currentUser);
 
             const [users] = useState([
                 { id: 1, name: 'Chris van der Merwe', email: 'chris@company.com', role: 'admin', avatar: 'CM', password: 'NextGen' }
@@ -206,30 +229,45 @@
 
             // Initialize data
             useEffect(() => {
-                initializeData();
-            }, []);
+                if (currentUser) {
+                    console.log('User logged in, initializing data...');
+                    initializeData();
+                }
+            }, [currentUser]);
 
             const initializeData = async () => {
+                console.log('Starting data initialization...');
                 setLoading(true);
                 
-                // Test connection
-                const connectionTest = await supabase.select('candidates', 'limit=1');
-                setDbConnected(!connectionTest.error);
-                
-                if (!connectionTest.error) {
-                    // Load real data
-                    await Promise.all([
-                        loadCandidates(),
-                        loadComments(),
-                        loadPipelines(),
-                        loadTags()
-                    ]);
-                } else {
-                    // Use demo data
+                try {
+                    // Test connection
+                    console.log('Testing database connection...');
+                    const connectionTest = await supabase.select('candidates', 'limit=1');
+                    const isConnected = !connectionTest.error;
+                    setDbConnected(isConnected);
+                    console.log('Database connected:', isConnected);
+                    
+                    if (isConnected) {
+                        console.log('Loading data from database...');
+                        // Load real data
+                        await Promise.all([
+                            loadCandidates(),
+                            loadComments(),
+                            loadPipelines(),
+                            loadTags()
+                        ]);
+                    } else {
+                        console.log('Using demo data...');
+                        // Use demo data
+                        setDemoData();
+                    }
+                } catch (error) {
+                    console.error('Error during initialization:', error);
                     setDemoData();
                 }
                 
                 setLoading(false);
+                console.log('Data initialization complete');
             };
 
             const setDemoData = () => {
@@ -375,7 +413,8 @@
                                     value: loginPassword,
                                     onChange: (e) => setLoginPassword(e.target.value),
                                     placeholder: "Enter your password",
-                                    className: "w-full p-4 rounded-xl bg-white/10 backdrop-blur border border-white/20 text-white placeholder-white/60 focus:ring-2 focus:ring-white/30 focus:border-transparent",
+                                    className: "w-full p-4 rounded-xl bg-white/20 backdrop-blur border border-white/30 text-white placeholder-white/60 focus:ring-2 focus:ring-white/50 focus:border-white/50 focus:outline-none",
+                                    style: { color: 'white' },
                                     onKeyPress: (e) => {
                                         if (e.key === 'Enter') {
                                             if (loginPassword === users[0].password) {
@@ -461,7 +500,7 @@
                                     React.createElement('p', { className: "text-3xl font-bold text-white" }, analytics.total)
                                 ),
                                 React.createElement('div', { className: "p-3 bg-blue-500/20 rounded-xl" },
-                                    React.createElement(Users, { className: "w-6 h-6 text-blue-400" })
+                                    React.createElement(UsersIcon)
                                 )
                             )
                         ),
@@ -473,7 +512,7 @@
                                         analytics.byStatus.interviewing + analytics.byStatus.screening + analytics.byStatus.technical)
                                 ),
                                 React.createElement('div', { className: "p-3 bg-purple-500/20 rounded-xl" },
-                                    React.createElement(TrendingUp, { className: "w-6 h-6 text-purple-400" })
+                                    React.createElement('span', { className: "text-purple-400 text-lg" }, "📈")
                                 )
                             )
                         ),
@@ -484,7 +523,7 @@
                                     React.createElement('p', { className: "text-3xl font-bold text-white" }, analytics.avgScore)
                                 ),
                                 React.createElement('div', { className: "p-3 bg-green-500/20 rounded-xl" },
-                                    React.createElement(Award, { className: "w-6 h-6 text-green-400" })
+                                    React.createElement('span', { className: "text-green-400 text-lg" }, "⭐")
                                 )
                             )
                         ),
@@ -495,7 +534,7 @@
                                     React.createElement('p', { className: "text-3xl font-bold text-white" }, pipelines.length)
                                 ),
                                 React.createElement('div', { className: "p-3 bg-yellow-500/20 rounded-xl" },
-                                    React.createElement(Target, { className: "w-6 h-6 text-yellow-400" })
+                                    React.createElement('span', { className: "text-yellow-400 text-lg" }, "📁")
                                 )
                             )
                         )
@@ -539,7 +578,7 @@
                                     onClick: () => setShowAddCandidate(true),
                                     className: "bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors"
                                 },
-                                    React.createElement(Plus, { className: "w-5 h-5" }),
+                                    React.createElement(PlusIcon),
                                     "Add Candidate"
                                 )
                             )
@@ -625,7 +664,7 @@
                                 },
                                 className: "p-2 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
                             },
-                                React.createElement(Eye, { className: "w-4 h-4 text-white" })
+                                React.createElement(EyeIcon)
                             )
                         )
                     ),
@@ -674,7 +713,7 @@
                         // Latest comment
                         candidateComments.length > 0 && React.createElement('div', { className: "bg-white/5 rounded-lg p-3" },
                             React.createElement('div', { className: "flex items-center gap-2 mb-2" },
-                                React.createElement(MessageSquare, { className: "w-4 h-4 text-white/70" }),
+                                React.createElement('span', { className: "text-white/70 text-lg" }, "💬"),
                                 React.createElement('span', { className: "text-white/70 text-sm" }, "Latest Comment")
                             ),
                             React.createElement('p', { className: "text-white/90 text-sm" }, candidateComments[0].comment),
@@ -717,9 +756,9 @@
                             React.createElement('h2', { className: "text-2xl font-bold text-white" }, "Add New Candidate"),
                             React.createElement('button', {
                                 onClick: () => setShowAddCandidate(false),
-                                className: "p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                className: "p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
                             },
-                                React.createElement(X, { className: "w-6 h-6 text-white" })
+                                React.createElement(XIcon)
                             )
                         ),
                         
@@ -786,67 +825,66 @@
                 );
             };
 
-            return React.createElement('div', { className: "min-h-screen gradient-bg" },
-                // Header
-                React.createElement('header', { className: "dark-glass border-b border-white/10" },
-                    React.createElement('div', { className: "max-w-7xl mx-auto px-6 py-4" },
-                        React.createElement('div', { className: "flex items-center justify-between" },
-                            React.createElement('div', { className: "flex items-center gap-4" },
-                                React.createElement('div', { className: "w-10 h-10 bg-white rounded-xl flex items-center justify-center" },
-                                    React.createElement('span', { className: "text-indigo-600 font-bold" }, "RP")
-                                ),
-                                React.createElement('div', null,
-                                    React.createElement('h1', { className: "text-xl font-bold text-white" }, "RecruitPro"),
-                                    React.createElement('p', { className: "text-white/60 text-sm" }, "Next-Generation CRM")
-                                ),
-                                React.createElement('span', { 
-                                    className: `px-3 py-1 rounded-full text-xs font-medium ${
-                                        dbConnected ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
-                                    }`
-                                }, dbConnected ? "Database Connected" : "Demo Mode")
-                            ),
-                            React.createElement('div', { className: "flex items-center gap-4" },
-                                React.createElement('button', {
-                                    onClick: () => setShowAnalytics(true),
-                                    className: "p-2 hover:bg-white/10 rounded-lg transition-colors"
-                                },
-                                    React.createElement(BarChart3, { className: "w-5 h-5 text-white" })
-                                ),
-                                React.createElement('div', { className: "flex items-center gap-3" },
-                                    React.createElement('div', { className: "w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center" },
-                                        React.createElement('span', { className: "text-white text-sm font-medium" }, currentUser.avatar)
+            // If user is logged in, show main app
+            if (currentUser && !loading) {
+                console.log('Rendering main application...');
+                return React.createElement('div', { className: "min-h-screen gradient-bg" },
+                    // Header
+                    React.createElement('header', { className: "dark-glass border-b border-white/10" },
+                        React.createElement('div', { className: "max-w-7xl mx-auto px-6 py-4" },
+                            React.createElement('div', { className: "flex items-center justify-between" },
+                                React.createElement('div', { className: "flex items-center gap-4" },
+                                    React.createElement('div', { className: "w-10 h-10 bg-white rounded-xl flex items-center justify-center" },
+                                        React.createElement('span', { className: "text-indigo-600 font-bold" }, "RP")
                                     ),
-                                    React.createElement('span', { className: "text-white font-medium" }, currentUser.name),
-                                    React.createElement('button', {
-                                        onClick: () => {
-                                            setCurrentUser(null);
-                                            setLoginPassword('');
-                                        },
-                                        className: "p-2 hover:bg-white/10 rounded-lg transition-colors"
-                                    },
-                                        React.createElement(LogOut, { className: "w-4 h-4 text-white/70" })
+                                    React.createElement('div', null,
+                                        React.createElement('h1', { className: "text-xl font-bold text-white" }, "RecruitPro"),
+                                        React.createElement('p', { className: "text-white/60 text-sm" }, "Next-Generation CRM")
+                                    ),
+                                    React.createElement('span', { 
+                                        className: `px-3 py-1 rounded-full text-xs font-medium ${
+                                            dbConnected ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+                                        }`
+                                    }, dbConnected ? "Database Connected" : "Demo Mode")
+                                ),
+                                React.createElement('div', { className: "flex items-center gap-4" },
+                                    React.createElement('div', { className: "flex items-center gap-3" },
+                                        React.createElement('div', { className: "w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center" },
+                                            React.createElement('span', { className: "text-white text-sm font-medium" }, currentUser.avatar)
+                                        ),
+                                        React.createElement('span', { className: "text-white font-medium" }, currentUser.name),
+                                        React.createElement('button', {
+                                            onClick: () => {
+                                                setCurrentUser(null);
+                                                setLoginPassword('');
+                                            },
+                                            className: "ml-4 text-white/70 hover:text-white text-sm"
+                                        }, "Sign Out")
                                     )
                                 )
                             )
                         )
-                    )
-                ),
+                    ),
 
-                // Main Content
-                React.createElement('main', { className: "max-w-7xl mx-auto px-6 py-8" },
-                    loading ? 
-                        React.createElement('div', { className: "flex items-center justify-center h-64" },
-                            React.createElement('div', { className: "text-white text-center" },
-                                React.createElement('div', { className: "animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" }),
-                                React.createElement('p', null, "Loading your recruitment data...")
-                            )
-                        ) :
+                    // Main Content
+                    React.createElement('main', { className: "max-w-7xl mx-auto px-6 py-8" },
                         React.createElement(Dashboard)
-                ),
+                    ),
 
-                // Modals
-                showAddCandidate && React.createElement(AddCandidateModal)
-            );
+                    // Modals
+                    showAddCandidate && React.createElement(AddCandidateModal)
+                );
+            }
+
+            // Loading state
+            if (currentUser && loading) {
+                return React.createElement('div', { className: "min-h-screen gradient-bg flex items-center justify-center" },
+                    React.createElement('div', { className: "text-white text-center" },
+                        React.createElement('div', { className: "animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" }),
+                        React.createElement('p', null, "Loading your recruitment data...")
+                    )
+                );
+            }
         };
 
         ReactDOM.render(React.createElement(NextGenCRM), document.getElementById('root'));
